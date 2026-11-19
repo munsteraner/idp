@@ -1,0 +1,2 @@
+date	commit	job	pipeline	kind	split	overall	text	formatting	tables	charts	layout	forms	wall_clock	note
+2026-11-19	c2ddde1fb0	47833344	pymupdf4llm_markdown	classical, CPU	all 4317 pages	50.99	45.39	57.07	58.10	0.89	82.19	62.32	1h43 on 16 cores	first own run; text layer only, no OCR

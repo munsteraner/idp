@@ -21,6 +21,12 @@ Last updated: 2026-11-19, evening.
 
 Results: `/scratch/tmp/$USER/idp/runs/unigpt_qwen3_8_27b_oneshot-d246b0f52d-47832984/`.
 
+## Results so far
+
+Our own runs are logged in `results/parsebench2.tsv`.
+
+- `pymupdf4llm_markdown` (classical, text layer only) on all of ParseBench 2: overall 50.99; text 45.4, formatting 57.1, tables 58.1, charts 0.9, layout 82.2, forms 62.3. Job 47833344 took 1 h 43 min on 16 cores, close to the 1 h 45 min limit; find out how much of that is scoring before planning many runs.
+
 ## On PALMA scratch
 
 - Model `Qwen/Qwen3.8-27B-FP8` at commit `c3a462cc` (31 GB) in `cache/hf` (job 47833152, done). `du` under-reports it; the files are complete.
@@ -28,13 +34,13 @@ Results: `/scratch/tmp/$USER/idp/runs/unigpt_qwen3_8_27b_oneshot-d246b0f52d-4783
 
 ## In progress
 
-- Job 47833344 (`jobs/bench_parse.sh`): first parser baseline, `pymupdf4llm_markdown` on all of ParseBench 2 (CPU). Results in `runs/parse/pymupdf4llm_markdown/`. Rerun the same command if it times out; finished documents are skipped.
+Nothing is running.
 
 ## Next
 
 Priority changed on 2026-11-19: parsing first, schema extraction second (see `DECISIONS.md`). Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated code search (PRD section 9a), confirmed on held-out data.
 
-1. Download ParseBench 2 to PALMA and run its smoke subset with one CPU parser (`pymupdf4llm_markdown` or `tesseract_eng`) to prove the parse path of the harness end to end.
+1. Done: ParseBench 2 is on PALMA (`work/data_parsebench-2`) and the parse path works end to end.
 2. Reproduce one published open-weight row on PALMA and compare with the leaderboard. Needs a GPU job that starts a vLLM server on localhost and runs the harness against it. Each parser pipeline has its own server settings in `parse_bench/inference/pipelines/parse.py` (for example `paddleocr_vl_1_6_vllm` expects the served model name `PaddleOCR-VL-1.6-0.9B`); read the provider code and the model's vLLM recipe before writing the job.
 3. Fix the screening, development and sealed test sets for ParseBench 2, grouped by source document; measure the noise floor.
 4. Run the classical tools that have no leaderboard row (Tesseract, PyMuPDF, pypdf, Docling, Unstructured) as CPU jobs.
