@@ -52,7 +52,7 @@ All runs are logged in `results/parsebench2.tsv` (ParseBench 2, all 4,317 pages,
 
 - Noise floor, run-to-run part: second LightOnOCR-3 4B run on the dev split (`TAG=rep2`), two GPU jobs in parallel, inference only: 47836748 (gpuexpress-zen4: text, headings, strikeout, underline, tables, complex headers, financial, insurance, charts) and 47836751 (gpu4090: dense tables, layout, forms, fillable forms). When both are done:
   1. `palma.py submit jobs/bench_score.sh SHA=<sha> PIPELINE=lightonocr3_4b_vllm SPLIT=dev TAG=rep2`
-  2. `palma.py submit jobs/score_split.sh SHA=<sha> PIPELINE=lightonocr3_4b_vllm SPLIT=dev RUN=runs/parse-rep2/lightonocr3_4b_vllm/parsebench-2 BASE_PIPELINE=lightonocr3_4b_vllm`. Careful: `BASE_PIPELINE` equals `PIPELINE` here, so the output file name must not collide; check `runs/scores/`.
+  2. `palma.py submit jobs/score_split.sh SHA=<sha> PIPELINE=lightonocr3_4b_vllm SPLIT=dev RUN=runs/parse-rep2/lightonocr3_4b_vllm/parsebench-2 BASE_PIPELINE=lightonocr3_4b_vllm`. It writes `runs/scores/lightonocr3_4b_vllm-vs-lightonocr3_4b_vllm-dev.json`.
   3. The paired difference of rep2 against rep1 on dev is the run-to-run noise floor. Write it into `DECISIONS.md` and PRD section 9a's keep rule.
 
 ## Next
