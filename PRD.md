@@ -359,6 +359,24 @@ Claude Code runs the research with as little user effort as possible: it propose
 - Prompts, configuration and pipeline code, in a git worktree. Each kept change is one commit with its result row.
 - Not the scorer, the gold labels, the dev/test split or the spend and job limits. These are read-only to the loop, and the sealed test set is not readable by it at all.
 
+**Search space**
+
+The loop compares methods per pipeline stage, not only models. Classical methods are candidates wherever they can do the job; a stage keeps whichever method wins on the numbers.
+
+| Stage | Classical candidates | Model-based candidates |
+| --- | --- | --- |
+| Read the page | PDF text layer (pdfium); OCR engines (Tesseract, PaddleOCR, docTR) | VLM parsers (PaddleOCR-VL, MinerU); no parse at all, page images straight to the extractor |
+| Layout and tables | Docling's layout and table models; rule-based table reconstruction from word positions | VLM parser output; the extractor reading the image |
+| Find the pages | Keyword and BM25 search over page text | Embedding search; the model choosing pages |
+| Extract values | Rules only for fixed patterns (IBAN, dates, totals) as cross-checks | Text-only LLM on parsed text; vision model on images; both; one call versus split by schema and by chunk |
+| Evidence | Exact and fuzzy string matching of quotes against word boxes | Model-emitted block IDs or boxes |
+| Verify | Checksums, arithmetic, format checks | A second model call that disagrees or agrees |
+
+Two levels of search:
+
+1. A broad sweep: every sensible combination of stage methods runs once on the dev subset as parallel Slurm jobs. Parse outputs are cached per document and parser, so each parser runs over the benchmark once and every extraction experiment reuses it.
+2. The agent loop: starting from the best combinations, it reads the errors, proposes a change, and tests it under the keep-or-reject rule below.
+
 **One iteration**
 
 1. Pick a hypothesis from the error analysis of the current best system.
