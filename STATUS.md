@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-19, 21:00.
+Last updated: 2026-11-19, 21:50.
 
 ## Done
 
@@ -41,11 +41,12 @@ Reproducing the published LightOnOCR-3 4B row (ParseBench 2 overall 78.29) with 
 - Full run: job 47834539 (gpuexpress-zen4), submitted 20:45, expected about 2 h at 0.6 pages/s. Results in `runs/parse/lightonocr3_4b_vllm/parsebench-2/`, vLLM log in `logs/vllm-47834539.log`. If it hits 4 h, resubmit the same command; finished pages are skipped.
 - Then: log it in `results/parsebench2.tsv`, compare per dimension with the leaderboard row (78.29; text 84.30, formatting 81.44, tables 78.25, charts 62.90, layout 84.25, forms 78.59), and run `python -m idp.score_split <run>/parsebench-2 lightonocr3_4b_vllm --split all` as a CPU job to check it reproduces the official score and to get the bootstrap interval.
 
-Classical parsers (step 4):
+Classical parsers (step 4), results in `results/parsebench2.tsv`:
 
-- Running: `tesseract_eng` (47834552) and `markitdown` (47834553) on `express`.
-- Docling: image `docling-serve-cpu` v1.17.0 being pulled (fetch job 47834554), then a smoke test with `jobs/bench_docling.sh ... "ARGS=--dataset parsebench-2 --group strikeout" TAG=smoke` and the full run.
-- Unstructured: the provider calls the Unstructured API; a self-hosted `unstructured-api` container would work like Docling. Not started.
+- Done: `pypdf_baseline` 28.37, `pymupdf_text` 30.45, `tesseract_eng` 29.31, `markitdown` 32.15. The plain-text tools score 0 on tables, charts and layout by design but are competitive on text, formatting and forms (best classical: text 57.9 `pymupdf_text`, formatting 65.7 `tesseract_eng`, forms 70.0 `markitdown`).
+- Running: Docling (`jobs/bench_server.sh PIPELINE=docling_serve`, job 47834593, about 65 min at 1.15 pages/s).
+- Running: Unstructured `hi_res`, self-hosted `unstructured-api` 0.1.16 (0.17 pages/s on 32 cores, so split over three jobs by `SUBSETS`): 47834806, 47834807, 47834808. When all three are done, run one clean scoring pass: `palma.py submit jobs/bench_parse.sh SHA=<sha> PIPELINE=unstructured_hi_res "ARGS=--dataset parsebench-2 --skip_inference"` (each job also re-scores the other jobs' partial subsets at its end, so its own `_next_score.json` is not final).
+- The first Tesseract run (47834552) lost every page silently to a wrong data path; the harness stored empty pages as successes. Every bench job now ends with `idp.check_run`, which counts empty pages and provider errors.
 
 ## Next
 
