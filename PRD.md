@@ -4,6 +4,8 @@ Nov 19, 2026 · @Lukas
 
 A tool that takes a PDF and a schema and returns the schema filled with values read from the PDF, each with verified evidence. This PRD is written to be handed to Claude Code for refinement and implementation; the research behind each decision is in `Research report.md`.
 
+> **Priority set by the user on Nov 19, 2026.** Parsing comes first: turning a PDF into faithful structured content (text, reading order, tables, forms, charts, positions). Schema extraction, described in most of this document, is the second step and starts once parsing is good. The primary benchmark is ParseBench 2; ExtractBench is the check for step two. Sections 3 to 7 still describe the full two-step pipeline; for the order of work follow `STATUS.md` and `DECISIONS.md`.
+
 ## 1. Summary and goals
 
 The tool turns a PDF plus a user-defined schema into a validated record in which every value carries a status and machine-verified evidence. It is an open-source Python package with a CLI, built by one person with Claude Code doing most of the work, developed on a low-powered laptop with all heavy computation on the PALMA II Slurm cluster and on model APIs.

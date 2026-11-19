@@ -1,6 +1,6 @@
 # idp
 
-Schema-guided PDF extraction with verified evidence. Research phase: find the best open-weight pipeline on ExtractBench, running on the PALMA II cluster.
+Document parsing first, schema extraction second. Step one: find the best open-weight way to turn PDFs into faithful structured content (text, tables, forms, charts, positions), measured on ParseBench 2. Step two, once parsing is good: fill user schemas from the parsed result, measured on ExtractBench. Everything runs on the PALMA II cluster.
 
 ## Start here
 
@@ -14,7 +14,7 @@ Schema-guided PDF extraction with verified evidence. Research phase: find the be
 - Open-weight models on PALMA II GPUs only. No paid APIs (decided 2026-11-19: too expensive for iteration).
 - Public datasets only.
 - No benchmark runs on the laptop (14 GB RAM); they run as Slurm jobs.
-- Scores come from the official ExtractBench harness, pinned in `pyproject.toml`. Never reshape model output before scoring, never edit the scorer.
+- Scores come from the official harness (ParseBench and ExtractBench scorers in one package), pinned in `pyproject.toml`. Never reshape model output before scoring, never edit the scorer.
 - Jobs run from a committed code snapshot (`palma.py sync`), so commit before submitting.
 - Secrets live in `.env` (git-ignored) and on PALMA in `/scratch/tmp/$USER/idp/.env`. Never print them.
 - State belongs in files, not in chat: results, decisions and status must survive a cleared conversation.

@@ -27,11 +27,16 @@ Results: `/scratch/tmp/$USER/idp/runs/unigpt_qwen3_8_27b_oneshot-d246b0f52d-4783
 
 ## Next
 
-1. Serve Qwen3.8-27B-FP8 with vLLM in a GPU job (server bound to localhost, harness in the same job). The weights are 31 GB, so it needs an H200 or, with a short context, an A100 40 GB; check before choosing. Measure tokens per second and pages per minute.
-2. Fix a dev subset (about 50 documents: mostly short and medium, a few long) and a sealed test split; commit the lists.
-3. Measure the noise floor: repeat the one-shot baseline several times on the dev subset.
-4. Build the parse cache and the first non-baseline pipeline: split long documents by page range and merge lists (targets the truncation seen on real_pueblo and the empty answer on real_sm0801).
-5. Build the orchestrator: instruction file, `IDEAS.md` backlog, results log, a shell loop that starts a fresh headless Claude Code per iteration, and a permission allowlist. Roles: scout and experimenter (PRD section 9a).
+Priority changed on 2026-11-19: parsing first, schema extraction second (see `DECISIONS.md`).
+
+1. Download ParseBench 2 to PALMA and run its smoke subset with one CPU parser (`pymupdf4llm_markdown` or `tesseract_eng`) to prove the parse path of the harness end to end.
+2. Reproduce one published open-weight row on PALMA (candidates: PaddleOCR-VL 1.6 or MinerU2.5-Pro on an RTX 4090) and compare with the leaderboard.
+3. Fix the screening, development and sealed test sets for ParseBench 2, grouped by source document; measure the noise floor.
+4. Run the classical tools that have no leaderboard row (Tesseract, PyMuPDF, pypdf, Docling, Unstructured) as CPU jobs.
+5. Parse cache: store every parser's output per page, so combinations can be scored without re-running parsers.
+6. First combination experiment: route pages or regions to the parser that is best for that content type (upper bound from published scores: about 83.6 against 80.07).
+7. Build the orchestrator: instruction file, `IDEAS.md` backlog, results log, a shell loop that starts a fresh headless Claude Code per iteration, and a permission allowlist (PRD section 9a).
+8. Step two, later: schema extraction on top of the best parse, checked on ExtractBench. Known targets from the first run: output cut at 32,768 tokens on real_pueblo, empty answer on real_sm0801.
 
 ## Open points
 

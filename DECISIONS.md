@@ -44,3 +44,35 @@ One entry per deviation from `PRD.md`: what changed, why, and the evidence.
 ## 2026-11-19: vLLM driver risk closed
 
 **Evidence.** Probe jobs show NVIDIA driver 620.70.06 with CUDA 13.5 on the RTX 4090 and A100 nodes of PALMA II, so current CUDA 13 builds of vLLM are supported. The H200 nodes are still to be probed (job queued).
+
+## 2026-11-19: Parsing first, schema extraction second
+
+**Changed.** The user set the priority: the main task is document parsing (turning a PDF into faithful structured content: text, reading order, tables, forms, charts, with positions). Filling a user schema from the parsed result (for example with Pydantic) is a second step that starts once parsing is good. Until now the PRD and the first runs treated schema extraction as the main task. The primary benchmark therefore becomes ParseBench 2; ExtractBench becomes the downstream check for step two.
+
+**Evidence** (ParseBench 2 leaderboard, 4,317 pages, six dimensions, read 2026-11-19):
+
+| System | Kind | Overall | Text | Formatting | Tables | Charts | Grounding | Forms |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| LlamaParse (Agentic Plus) | Commercial | 90.82 | 90.22 | 93.60 | 94.72 | 92.58 | 88.23 | 85.56 |
+| KDL-Frontier-Parser-nano-v2 | Open weight | 80.07 | 80.21 | 84.58 | 80.54 | 73.55 | 88.28 | 73.28 |
+| Infinity-Parser2 Pro | Open weight | 78.41 | 85.55 | 78.70 | 86.27 | 55.64 | 87.04 | 77.28 |
+| LightOnOCR-3 4B | Open weight | 78.29 | 84.30 | 81.44 | 78.25 | 62.90 | 84.25 | 78.59 |
+| Chandra 2 | Open weight | 77.45 | 77.18 | 88.80 | 85.60 | 62.48 | 72.44 | 78.20 |
+| MinerU2.5-Pro | Open weight | 76.77 | 76.92 | 79.04 | 80.58 | 63.96 | 86.21 | 73.93 |
+| Qwen3.8 27B (Thinking) | Open weight | 74.40 | 81.47 | 79.33 | 76.84 | 65.15 | 70.46 | 73.13 |
+| PaddleOCR-VL 1.6 | Open weight | 71.42 | 73.30 | 79.40 | 73.03 | 57.45 | 74.54 | 70.83 |
+| surya-ocr-2 | Open weight | 68.86 | 84.91 | 86.32 | 72.40 | 20.68 | 71.37 | 77.50 |
+| dots.mocr | Open weight | 64.05 | 86.29 | 80.63 | 83.40 | 0.78 | 67.88 | 65.33 |
+
+**What this shows.**
+
+- The best open-weight parser trails the best commercial one by about 11 points overall.
+- No open parser is best everywhere: the best open score per dimension comes from five different systems. Taking the best open score in each dimension gives a mean of about 83.6, against 80.07 for the best single one. That is an upper bound for routing each page or region to the right parser, and the first concrete case for combining methods.
+- Charts are the weakest dimension for almost every open parser.
+- Classical tools (Tesseract, PyMuPDF, pypdf, Docling, Unstructured) are registered as pipelines in the harness but have no row on this leaderboard. They run on CPUs, so measuring them is cheap.
+
+**Consequences.**
+
+- The harness we installed already contains ParseBench's scorer and 149 parse pipelines, so the tooling stays.
+- Most open parsers are 1 to 4B models that fit an RTX 4090, the GPU type PALMA II has most of. Iteration is cheaper than with a 27B extractor.
+- The Qwen3.8-27B download is kept: it is a parser candidate itself and the extractor for step two.
