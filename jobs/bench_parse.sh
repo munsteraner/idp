@@ -10,6 +10,8 @@
 : "${SHA:?set SHA}" "${PIPELINE:?set PIPELINE}"
 source "/scratch/tmp/$USER/idp/code/$SHA/jobs/_env.sh"
 cd "$P/work"
+# One thread per Tesseract process; the harness already runs pages in parallel.
+export OMP_THREAD_LIMIT=1
 ARGS=${ARGS:---dataset parsebench-2}
 "$ENVDIR/bin/parse-bench" download ${ARGS%% --group*}
 OUT=$P/runs/parse/$PIPELINE

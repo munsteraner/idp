@@ -13,21 +13,27 @@ ENVDIR=$P/envs/$(sha256sum "$CODE/uv.lock" | cut -c1-12)
 export UV_PROJECT_ENVIRONMENT=$ENVDIR
 export PATH=$P/bin:$PATH
 
-# PALMA has no poppler (needed to render PDF pages) as a package or module, so
-# it is installed once from conda-forge into the project directory.
-TOOLS=$P/tools/poppler
-if [ ! -x "$TOOLS/bin/pdftoppm" ]; then
-  (
-    flock 9
-    if [ ! -x "$TOOLS/bin/pdftoppm" ]; then
-      mkdir -p "$P/bin" "$P/cache/mamba"
-      curl -LsSf https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C "$P" bin/micromamba
-      MAMBA_ROOT_PREFIX=$P/cache/mamba "$P/bin/micromamba" create -y -q -p "$TOOLS.tmp" -c conda-forge poppler
-      mv "$TOOLS.tmp" "$TOOLS"
-    fi
-  ) 9>"$P/tools.lock"
-fi
-export PATH=$TOOLS/bin:$PATH
+# PALMA has no poppler (needed to render PDF pages) or Tesseract as a package or
+# module, so each is installed once from conda-forge into the project directory.
+conda_tool() {  # conda_tool <name> <binary to check> <conda-forge package>
+  local dir=$P/tools/$1
+  if [ ! -x "$dir/bin/$2" ]; then
+    (
+      flock 9
+      if [ ! -x "$dir/bin/$2" ]; then
+        mkdir -p "$P/bin" "$P/cache/mamba"
+        [ -x "$P/bin/micromamba" ] ||
+          curl -LsSf https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C "$P" bin/micromamba
+        rm -rf "$dir.tmp"
+        MAMBA_ROOT_PREFIX=$P/cache/mamba "$P/bin/micromamba" create -y -q -p "$dir.tmp" -c conda-forge "$3"
+        mv "$dir.tmp" "$dir"
+      fi
+    ) 9>"$P/tools.lock"
+  fi
+  export PATH=$dir/bin:$PATH
+}
+conda_tool poppler pdftoppm poppler
+conda_tool tesseract tesseract tesseract
 
 if ! command -v uv >/dev/null; then
   curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=$P/bin UV_NO_MODIFY_PATH=1 sh
