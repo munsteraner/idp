@@ -377,6 +377,16 @@ Two levels of search:
 1. A broad sweep: every sensible combination of stage methods runs once on the dev subset as parallel Slurm jobs. Parse outputs are cached per document and parser, so each parser runs over the benchmark once and every extraction experiment reuses it.
 2. The agent loop: starting from the best combinations, it reads the errors, proposes a change, and tests it under the keep-or-reject rule below.
 
+**Where new ideas come from**
+
+The loop must not converge on one approach just because it was tried first. Three sources feed a shared backlog, `IDEAS.md`, where each idea names the stage it changes, the failure it targets, and its expected cost:
+
+- Error analysis: the per-field reports of the current best system, grouped by the benchmark's challenge tags (long lists, needles, dense forms, scans, handwriting).
+- A research scout: a separate agent run that searches papers, repositories and leaderboard changes for techniques not yet in the backlog, including combinations of methods (for example OCR word boxes for evidence with a vision model for values, two parsers cross-checked, a text model and a vision model voting). It only writes to the backlog; it runs no experiments.
+- The stage table above: any stage whose alternatives have not been measured yet.
+
+Exploration rule: every batch of experiments includes at least one idea that changes a different stage, or combines methods, compared with the current best system. Rejected ideas stay in the backlog with their result, so they are not retried blindly.
+
 **One iteration**
 
 1. Pick a hypothesis from the error analysis of the current best system.
