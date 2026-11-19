@@ -2,3 +2,4 @@ date	commit	job	pipeline	kind	split	overall	text	formatting	tables	charts	layout
 2026-11-19	c2ddde1fb0	47833344	pymupdf4llm_markdown	classical, CPU	all 4317 pages	50.99	45.39	57.07	58.10	0.89	82.19	62.32	1h43 on 16 cores	first own run; text layer only, no OCR
 2026-11-19	7be300aac6	47834544	pymupdf_text	classical, CPU	all 4317 pages	30.45	57.90	56.93	0.10	0.00	0.00	67.77	7 min on 16 cores	plain text layer, no structure or boxes; beats pymupdf4llm on text and forms
 2026-11-19	7be300aac6	47834543	pypdf_baseline	classical, CPU	all 4317 pages	28.37	52.40	54.01	0.10	0.00	0.00	63.70	9 min on 16 cores	plain text layer, no structure or boxes
+2026-11-19	c5aef6b7e6	47834553	markitdown	classical, CPU	all 4317 pages	32.15	53.86	56.91	11.66	0.41	0.00	70.03	34 min on 16 cores	pdfminer text plus simple tables; best classical forms score so far
