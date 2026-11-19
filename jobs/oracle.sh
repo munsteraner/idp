@@ -14,4 +14,5 @@ mkdir -p "$P/runs/scores"
 SPECS=()
 for p in $PIPELINES; do SPECS+=("$P/runs/parse/$p/parsebench-2:$p"); done
 "$PY" -m idp.oracle --split "$SPLIT" --splits "$CODE/splits/parsebench2.tsv" "${SPECS[@]}" \
-  --out "$P/runs/scores/oracle-${NAME:-all}-$SPLIT.json"
+  --out "$P/runs/scores/oracle-${NAME:-all}-$SPLIT.json" \
+  --page-scores "$P/runs/scores/page-scores-${NAME:-all}.tsv"

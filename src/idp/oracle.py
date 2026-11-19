@@ -69,12 +69,27 @@ def oracle(runs: dict[str, dict[str, list[Any]]], keep: set[str]) -> dict:
     return {"oracle_score": score, "oracle_slots": slots, "picks": picks}
 
 
+def page_scores(runs: dict[str, dict[str, list[Any]]]) -> list[dict]:
+    """Every page's official value on each of its slot metrics, per run (failed pages count 0)."""
+    from parse_bench.evaluation.next_score import NEXT_DIMENSIONS
+
+    rows = []
+    for dimension, slots in NEXT_DIMENSIONS.items():
+        for slot in slots:
+            for name, run in runs.items():
+                for r in run.get(slot.subset, []):
+                    rows.append({"id": r.test_id, "dimension": dimension, "metric": slot.metric,
+                                 "pipeline": name, "value": round(_value(r, slot.metric), 6)})
+    return rows
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("runs", nargs="+", help="RUN_BASE:PIPELINE, RUN_BASE holding one folder per subset")
     p.add_argument("--split", default="dev", choices=sorted(SPLIT_LABELS))
     p.add_argument("--splits", type=Path, default=Path(__file__).resolve().parents[2] / "splits/parsebench2.tsv")
     p.add_argument("--out", type=Path)
+    p.add_argument("--page-scores", type=Path, help="also write every page's slot values per run (TSV)")
     a = p.parse_args(argv)
     labels = SPLIT_LABELS[a.split]
     keep = {case for case, (_, label) in load_splits(a.splits).items() if label in labels}
@@ -82,6 +97,13 @@ def main(argv: list[str] | None = None) -> int:
     for spec in a.runs:
         base, pipeline = spec.rsplit(":", 1)
         runs[pipeline] = load_run(Path(base), pipeline)
+    if a.page_scores:
+        import csv
+
+        with a.page_scores.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["id", "dimension", "metric", "pipeline", "value"], delimiter="\t")
+            w.writeheader()
+            w.writerows(page_scores(runs))
     result = {"split": a.split, "runs": a.runs, **oracle(runs, keep)}
     text = json.dumps(result, indent=2)
     if a.out:
