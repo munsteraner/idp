@@ -13,10 +13,13 @@ from extract_bench.inference.limits import EXTRACT_HARD_TIMEOUT_S
 from extract_bench.schemas.pipeline import PipelineSpec
 from extract_bench.schemas.product import ProductType
 
+import idp.streaming  # noqa: F401  (registers the streaming provider)
+
 UNIGPT_URL = "https://gpt.uni-muenster.de"  # the provider appends /v1
 
 # One-shot reference baselines on the university endpoint: page images in, JSON
-# out, same provider and settings as the harness's self-hosted vLLM rows, so the
+# out, same prompt and settings as the harness's self-hosted vLLM rows (only the
+# transport streams, see idp.streaming), so the
 # scores are comparable with the published leaderboard. Model names are the ones
 # the uniGPT docs list; `idp-bench models` shows what the key can reach.
 UNIGPT_ONESHOT = {
@@ -30,7 +33,7 @@ def _register() -> None:
         register_pipeline(
             PipelineSpec(
                 pipeline_name=name,
-                provider_name="vllm_extract",
+                provider_name="openai_compat_stream_extract",
                 product_type=ProductType.EXTRACT,
                 config={
                     "server_url": UNIGPT_URL,

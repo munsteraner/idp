@@ -15,6 +15,7 @@ Usage:
   palma.py cancel <jobid>        scancel, only for idp-* jobs of this user
   palma.py put <local> <remote-relative-path>
   palma.py get <remote-relative-path> <local>
+  palma.py sync                  copy the committed code to code/<sha>/ (immutable)
 """
 from __future__ import annotations
 
@@ -334,6 +335,29 @@ def cmd_get(args: list[str]) -> None:
     print(f"saved {args[1]} ({len(p.stdout)} bytes)")
 
 
+def cmd_sync() -> None:
+    """Snapshot HEAD to code/<short sha>/ on PALMA. Jobs run from a snapshot,
+    so every result maps to one commit and running jobs never see code change."""
+    require_connection()
+    root = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
+                          text=True, check=True).stdout.strip()
+    if subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True,
+                      cwd=root).stdout.strip():
+        die("uncommitted changes; commit first so the snapshot matches a commit")
+    sha = subprocess.run(["git", "rev-parse", "--short=10", "HEAD"], capture_output=True,
+                         text=True, check=True, cwd=root).stdout.strip()
+    dest = f"{PROJECT}/code/{sha}"
+    if ssh(f"[ -e {dest} ] && echo yes || echo no").strip() == "yes":
+        print(f"code/{sha} already on PALMA")
+        return
+    tar = subprocess.run(["git", "archive", "--format=tar", "HEAD"], capture_output=True,
+                         check=True, cwd=root).stdout
+    cmd = ["ssh", "-o", "BatchMode=yes", HOST,
+           f"umask 077; mkdir -p {dest}.tmp && tar -x -C {dest}.tmp && mv {dest}.tmp {dest}"]
+    subprocess.run(cmd, input=tar, check=True, stderr=subprocess.DEVNULL)
+    print(f"synced code/{sha} ({len(tar) // 1024} KiB)")
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         print(__doc__)
@@ -342,7 +366,7 @@ def main() -> None:
     table = {"check": lambda: cmd_check(), "status": lambda: cmd_status(),
              "ro": lambda: cmd_ro(args), "submit": lambda: cmd_submit(args),
              "logs": lambda: cmd_logs(args), "cancel": lambda: cmd_cancel(args),
-             "put": lambda: cmd_put(args), "get": lambda: cmd_get(args)}
+             "put": lambda: cmd_put(args), "get": lambda: cmd_get(args), "sync": lambda: cmd_sync()}
     if cmd not in table:
         die(f"unknown command '{cmd}'\n{__doc__}")
     table[cmd]()

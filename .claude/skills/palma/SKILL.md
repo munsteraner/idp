@@ -22,6 +22,7 @@ All cluster access goes through `.claude/skills/palma/palma.py`. It enforces the
 | `palma.py submit job.sh [--dry-run]` | Check limits, copy the script to `jobs/`, `sbatch` it |
 | `palma.py logs <jobid> [-n N]` | State plus tail of the output file |
 | `palma.py cancel <jobid>` | Only `idp-*` jobs of this user |
+| `palma.py sync` | Snapshot the committed code to `code/<sha>/`; jobs run from a snapshot, never from a moving copy |
 | `palma.py put <local> <rel>` / `get <rel> <local>` | Small files, relative to the project directory; `put` refuses to overwrite |
 
 ## Standing limits (set by the user, 2026-11-19)
@@ -72,7 +73,7 @@ module load apptainer/1.5.0
 
 - Request only the cores and memory the job uses; whole-node requests are against site rules.
 - Jobs must skip finished work so a rerun or requeue is cheap.
-- Secrets (API keys) never go into a job script or the repo. Read them in the job from a `0600` file under the project directory that the user created.
+- Secrets (API keys) never go into a job script or the repo. Jobs read them from `/scratch/tmp/$USER/idp/.env` (mode 0600, inside a 0700 directory; holds only the uniGPT key, copied with the user's approval on 2026-11-19). PALMA has no secrets vault. Copy another key there only with the user's OK, and never print the file.
 
 ## After each job
 
