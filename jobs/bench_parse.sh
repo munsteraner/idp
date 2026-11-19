@@ -16,5 +16,6 @@ ARGS=${ARGS:---dataset parsebench-2}
 "$ENVDIR/bin/parse-bench" download ${ARGS%% --group*}
 OUT=$P/runs/parse/$PIPELINE
 "$ENVDIR/bin/parse-bench" run "$PIPELINE" $ARGS --output_dir="$OUT" --max_concurrent="${CONC:-16}" --open_report=False
+"$PY" -m idp.check_run "$OUT"
 echo "RESULTS: $OUT"
 find "$OUT" -name "_next_score.json" -o -name "_score*.json" | head -5

@@ -40,4 +40,5 @@ ARGS=${ARGS:---dataset parsebench-2}
 "$ENVDIR/bin/parse-bench" download ${ARGS%% --group*}
 OUT=$P/runs/parse${TAG:+-$TAG}/$PIPELINE
 "$ENVDIR/bin/parse-bench" run "$PIPELINE" $ARGS --output_dir="$OUT" --max_concurrent="${CONC:-$WORKERS}" --open_report=False
+"$PY" -m idp.check_run "$OUT"
 echo "RESULTS: $OUT  (elapsed $SECONDS s)"
