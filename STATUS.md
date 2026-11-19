@@ -34,7 +34,10 @@ Our own runs are logged in `results/parsebench2.tsv`.
 
 ## In progress
 
-Nothing is running.
+Reproducing the published LightOnOCR-3 4B row (ParseBench 2 overall 78.29) with `jobs/bench_vllm.sh` (vLLM v0.34.0 on localhost inside the job, harness pipeline `lightonocr3_4b_vllm`, model `lightonai/LightOnOCR-3-4B` at `b71010f0`, Apache 2.0).
+
+- Smoke test on the `strikeout` subset: job 47834534 (gpuexpress-zen4, 1 RTX 4090), results in `runs/parse-smoke/lightonocr3_4b_vllm/`, vLLM log in `logs/vllm-<jobid>.log`.
+- Then the full run without `TAG`/`--group`; resume with the same command if it hits 4 h.
 
 ## Next
 

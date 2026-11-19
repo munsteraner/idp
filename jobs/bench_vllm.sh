@@ -3,7 +3,7 @@
 #SBATCH --partition=gpuexpress-zen4
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=48G
+#SBATCH --mem=32G
 #SBATCH --time=04:00:00
 # Serve a parser model with vLLM on localhost inside the job, run the harness
 # pipeline against it on ParseBench 2, and score it.
