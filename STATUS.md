@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-19, 21:50.
+Last updated: 2026-11-20, 00:35.
 
 ## Done
 
@@ -23,41 +23,48 @@ Results: `/scratch/tmp/$USER/idp/runs/unigpt_qwen3_8_27b_oneshot-d246b0f52d-4783
 
 ## Results so far
 
-Our own runs are logged in `results/parsebench2.tsv`.
+All runs are logged in `results/parsebench2.tsv` (ParseBench 2, all 4,317 pages, dataset `c300dcf`, scorer 2.1.2).
 
-- `pymupdf4llm_markdown` (classical, text layer only) on all of ParseBench 2: overall 50.99; text 45.4, formatting 57.1, tables 58.1, charts 0.9, layout 82.2, forms 62.3. Job 47833344 took 1 h 43 min on 16 cores; scoring is only about 10 min of that, the rest is the parser.
-- `pymupdf_text` 30.45 and `pypdf_baseline` 28.37: plain text, so no tables, charts or layout, but `pymupdf_text` beats `pymupdf4llm_markdown` on text (57.9 against 45.4) and forms (67.8 against 62.3). A first concrete case for routing.
+| Parser | Kind | Overall | Text | Formatting | Tables | Charts | Layout | Forms |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `lightonocr3_4b_vllm` | VLM 4B, RTX 4090 | 78.14 | 83.95 | 81.26 | 77.66 | 62.82 | 83.85 | 79.32 |
+| `docling_serve` | classical + layout/table models, CPU | 54.53 | 52.41 | 72.36 | 54.77 | 0.66 | 77.96 | 69.05 |
+| `pymupdf4llm_markdown` | classical, CPU | 50.99 | 45.39 | 57.07 | 58.10 | 0.89 | 82.19 | 62.32 |
+| `unstructured_hi_res` | classical + layout model, CPU | 47.49 | 57.71 | 71.93 | 17.56 | 0.36 | 71.53 | 65.87 |
+| `markitdown` | text layer, CPU | 32.15 | 53.86 | 56.91 | 11.66 | 0.41 | 0.00 | 70.03 |
+| `pymupdf_text` | text layer, CPU | 30.45 | 57.90 | 56.93 | 0.10 | 0.00 | 0.00 | 67.77 |
+| `tesseract_eng` | OCR, CPU | 29.31 | 45.28 | 65.70 | 0.10 | 0.01 | 0.00 | 64.77 |
+| `pypdf_baseline` | text layer, CPU | 28.37 | 52.40 | 54.01 | 0.10 | 0.00 | 0.00 | 63.70 |
+
+- **Milestone MB done:** LightOnOCR-3 4B reproduces its published row (78.14 against 78.29, every dimension within 0.75). Our setup matches the leaderboard's (`DECISIONS.md`).
+- No classical tool comes near the VLM on any dimension; the best classical layout score (82.19, `pymupdf4llm_markdown`) is closest. Charts are about 0 for every classical tool.
+- Sampling noise (dev split, cluster bootstrap): ±1.3 points overall for one system; paired differences between two systems are much tighter.
 
 ## On PALMA scratch
 
-- Model `Qwen/Qwen3.8-27B-FP8` at commit `c3a462cc` (31 GB) in `cache/hf` (job 47833152, done). `du` under-reports it; the files are complete.
-- Container `images/vllm-v0.34.0.sif` (8.7 GB), from `vllm/vllm-openai@sha256:cf5b2fdd…`.
+- Model `Qwen/Qwen3.8-27B-FP8` at commit `c3a462cc` (31 GB) and `lightonai/LightOnOCR-3-4B` at `b71010f0` in `cache/hf`.
+- Images in `images/`: `vllm-v0.34.0.sif` (from `vllm/vllm-openai@sha256:cf5b2fdd…`), `docling-serve-cpu-v1.17.0.sif` (`quay.io/docling-project/docling-serve-cpu@sha256:ed161d05…`), `unstructured-api-0.1.16.sif` (`quay.io/unstructured-io/unstructured-api@sha256:fcd5230d…`).
+- Tools from conda-forge in `tools/`: poppler, tesseract.
+- Parse outputs per parser and page in `runs/parse/<pipeline>/parsebench-2/<subset>/<pipeline>/<subset>/<name>.result.json`. This is already the parse cache of step 5: combinations can be built from these files and scored with the official scorer without re-running any parser.
+- `runs/parse-verify/pymupdf_text/` and `runs/parse-smoke/*` are test outputs; they can be deleted with the user's OK.
 
 ## In progress
 
-Reproducing the published LightOnOCR-3 4B row (ParseBench 2 overall 78.29) with `jobs/bench_vllm.sh` (vLLM v0.34.0 on localhost inside the job, harness pipeline `lightonocr3_4b_vllm`, model `lightonai/LightOnOCR-3-4B` at `b71010f0`, Apache 2.0).
-
-- Smoke test on `strikeout` (job 47834534): 128/128 pages, no failures, vLLM up in 222 s, 0.71 pages/s, 15 GB RAM.
-- Full run: job 47834539 (gpuexpress-zen4), submitted 20:45, expected about 2 h at 0.6 pages/s. Results in `runs/parse/lightonocr3_4b_vllm/parsebench-2/`, vLLM log in `logs/vllm-47834539.log`. If it hits 4 h, resubmit the same command; finished pages are skipped.
-- Then: log it in `results/parsebench2.tsv`, compare per dimension with the leaderboard row (78.29; text 84.30, formatting 81.44, tables 78.25, charts 62.90, layout 84.25, forms 78.59), and run `python -m idp.score_split <run>/parsebench-2 lightonocr3_4b_vllm --split all` as a CPU job to check it reproduces the official score and to get the bootstrap interval.
-
-Classical parsers (step 4), results in `results/parsebench2.tsv`:
-
-- Done: `pypdf_baseline` 28.37, `pymupdf_text` 30.45, `tesseract_eng` 29.31, `markitdown` 32.15. The plain-text tools score 0 on tables, charts and layout by design but are competitive on text, formatting and forms (best classical: text 57.9 `pymupdf_text`, formatting 65.7 `tesseract_eng`, forms 70.0 `markitdown`).
-- Running: Docling (`jobs/bench_server.sh PIPELINE=docling_serve`, job 47834593, about 65 min at 1.15 pages/s).
-- Running: Unstructured `hi_res`, self-hosted `unstructured-api` 0.1.16 (0.17 pages/s on 32 cores, so split over three jobs by `SUBSETS`): 47834806, 47834807, 47834808. When all three are done, run one clean scoring pass: `palma.py submit jobs/bench_parse.sh SHA=<sha> PIPELINE=unstructured_hi_res "ARGS=--dataset parsebench-2 --skip_inference"` (each job also re-scores the other jobs' partial subsets at its end, so its own `_next_score.json` is not final).
-- The first Tesseract run (47834552) lost every page silently to a wrong data path; the harness stored empty pages as successes. Every bench job now ends with `idp.check_run`, which counts empty pages and provider errors.
+- Noise floor, run-to-run part: second LightOnOCR-3 4B run on the dev split (`TAG=rep2`), two GPU jobs in parallel, inference only: 47836748 (gpuexpress-zen4: text, headings, strikeout, underline, tables, complex headers, financial, insurance, charts) and 47836751 (gpu4090: dense tables, layout, forms, fillable forms). When both are done:
+  1. `palma.py submit jobs/bench_score.sh SHA=<sha> PIPELINE=lightonocr3_4b_vllm SPLIT=dev TAG=rep2`
+  2. `palma.py submit jobs/score_split.sh SHA=<sha> PIPELINE=lightonocr3_4b_vllm SPLIT=dev RUN=runs/parse-rep2/lightonocr3_4b_vllm/parsebench-2 BASE_PIPELINE=lightonocr3_4b_vllm`. Careful: `BASE_PIPELINE` equals `PIPELINE` here, so the output file name must not collide; check `runs/scores/`.
+  3. The paired difference of rep2 against rep1 on dev is the run-to-run noise floor. Write it into `DECISIONS.md` and PRD section 9a's keep rule.
 
 ## Next
 
 Priority changed on 2026-11-19: parsing first, schema extraction second (see `DECISIONS.md`). Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated code search (PRD section 9a), confirmed on held-out data.
 
 1. Done: ParseBench 2 is on PALMA (`work/data_parsebench-2`) and the parse path works end to end.
-2. Reproduce one published open-weight row on PALMA and compare with the leaderboard. Needs a GPU job that starts a vLLM server on localhost and runs the harness against it. Each parser pipeline has its own server settings in `parse_bench/inference/pipelines/parse.py` (for example `paddleocr_vl_1_6_vllm` expects the served model name `PaddleOCR-VL-1.6-0.9B`); read the provider code and the model's vLLM recipe before writing the job.
-3. Done: splits in `splits/parsebench2.tsv` and the split scorer `src/idp/score_split.py` (see `DECISIONS.md`). Still open: the noise floor. Run LightOnOCR-3 4B a second time on dev (temperature 0.1, so outputs vary) and compare the two runs with `score_split --baseline`.
-4. Run the classical tools that have no leaderboard row (Tesseract, PyMuPDF, pypdf, Docling, Unstructured) as CPU jobs.
-5. Parse cache: store every parser's output per page, so combinations can be scored without re-running parsers.
-6. First combination experiment: route pages or regions to the parser that is best for that content type (upper bound from published scores: about 83.6 against 80.07).
+2. Done: LightOnOCR-3 4B reproduced (78.14 against 78.29).
+3. Done: splits in `splits/parsebench2.tsv`, split scorer `src/idp/score_split.py`, sampling noise measured. Still open: run-to-run noise (in progress, see above).
+4. Done: classical tools measured (table above). Optional: Docling on a GPU (`docling-serve` CUDA image v1.17.0, `sha256:3cc7fe3d…`) if it becomes a router candidate; on CPU, 13 dense tables hit the provider's 120 s timeout.
+5. Mostly done: the harness output directories are the parse cache. Missing: the other open VLM parsers. Screen them on `SPLIT=screen` first (compute policy in `DECISIONS.md`); candidates with a pipeline in the harness and a leaderboard row: KDL-Frontier-Parser-nano-v2 (80.07), Infinity-Parser2 Pro (78.41), Chandra 2 (77.45), MinerU2.5-Pro (76.77), PaddleOCR-VL 1.6 (71.42), dots.mocr (64.05, strong text and tables). Read each provider's docstring for its server settings and add a `case` entry to `jobs/bench_vllm.sh`.
+6. First combination experiment: route pages or regions to the parser that is best for that content type (upper bound from published scores: about 83.6 against 80.07). Build combined outputs in the harness results layout from the cached `result.json` files and score them with `parse-bench evaluation run` (official scorer, unchanged). First compute the per-page oracle on dev across the cached parsers, to see how much routing can gain at most.
 7. Build the orchestrator: instruction file, `IDEAS.md` backlog, results log, a shell loop that starts a fresh headless Claude Code per iteration, and a permission allowlist (PRD section 9a).
 8. Step two, later: schema extraction on top of the best parse, checked on ExtractBench. Known targets from the first run: output cut at 32,768 tokens on real_pueblo, empty answer on real_sm0801.
 
@@ -67,3 +74,4 @@ Priority changed on 2026-11-19: parsing first, schema extraction second (see `DE
 - Commits are local only; nothing is pushed to GitHub.
 - uniGPT is no longer part of the plan; its pipelines remain as a quick check.
 - Lower the memory request in `jobs/bench_api.sh`: the run used 1.8 GB of 16 GB.
+- Harness quirks to remember: some providers return an empty page instead of an error (`idp.check_run` catches it); the Unstructured provider fails on 6 pages with `NoneType.strip`; Docling's provider timeout is a fixed 120 s. These are the official pipelines' behaviour and stay as they are in reported scores.
