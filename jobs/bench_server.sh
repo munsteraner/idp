@@ -7,10 +7,13 @@
 # Run a classical parser's HTTP server (pinned container image) on localhost
 # inside the job, run the harness pipeline against it on ParseBench 2, and score it.
 # Usage: submit bench_server.sh SHA=<code sha> PIPELINE=<docling_serve|unstructured_hi_res|...>
-#        ["ARGS=--dataset parsebench-2 --group strikeout"] [TAG=smoke] [WORKERS=8]
-# Finished documents are skipped on a rerun, so a timeout loses nothing.
+#        [SPLIT=screen] [SUBSETS="text headings"] [TAG=smoke] [WORKERS=8] [SCORE=0]
+# Finished pages are skipped on a rerun, so a timeout loses nothing. For parallel
+# jobs over SUBSETS set SCORE=0 and score once with bench_score.sh.
 : "${SHA:?set SHA}" "${PIPELINE:?set PIPELINE}"
 source "/scratch/tmp/$USER/idp/code/$SHA/jobs/_env.sh"
+source "$CODE/jobs/_bench.sh"
+bench_data
 module load apptainer/1.5.0
 PORT=$("$PY" -c "import socket; s=socket.socket(); s.bind(('127.0.0.1', 0)); print(s.getsockname()[1])")
 LOG=$P/logs/server-$SLURM_JOB_ID.log
@@ -54,13 +57,5 @@ done
 curl -sf "http://127.0.0.1:$PORT$HEALTH" >/dev/null || { echo "server not healthy after 10 min"; tail -50 "$LOG"; exit 1; }
 echo "server up on port $PORT after $SECONDS s"
 
-cd "$P/work"
-ARGS=${ARGS:---dataset parsebench-2}
-# SUBSETS="text headings" runs only those subsets (the wrapper allows no commas in values).
-SUBSETS=${SUBSETS:-}
-[ -n "$SUBSETS" ] && ARGS="$ARGS --group ${SUBSETS// /,}"
-"$ENVDIR/bin/parse-bench" download ${ARGS%% --group*}
-OUT=$P/runs/parse${TAG:+-$TAG}/$PIPELINE
-"$ENVDIR/bin/parse-bench" run "$PIPELINE" $ARGS --output_dir="$OUT" --max_concurrent="${CONC:-$WORKERS}" --open_report=False
-"$PY" -m idp.check_run "$OUT"
-echo "RESULTS: $OUT  (elapsed $SECONDS s)"
+bench_infer "${CONC:-$WORKERS}"
+[ "${SCORE:-1}" = 0 ] || bench_score

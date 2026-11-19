@@ -5,14 +5,18 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=04:00:00
-# Serve a parser model with vLLM on localhost inside the job, run the harness
-# pipeline against it on ParseBench 2, and score it.
-# Usage: submit bench_vllm.sh SHA=<code sha> PIPELINE=<name> ["ARGS=--dataset parsebench-2 --group strikeout"] [TAG=smoke]
+# Serve a parser model with vLLM on localhost inside the job and run the harness
+# pipeline against it on ParseBench 2. Inference only: the GPU is not held for
+# scoring; score afterwards with bench_score.sh (CPU), using the same SPLIT and TAG.
+# Usage: submit bench_vllm.sh SHA=<code sha> PIPELINE=<name> [SPLIT=screen] [SUBSETS="charts layout"] [TAG=smoke]
 # Model, revision and server flags are pinned per pipeline below, following the
-# provider's docstring in parse_bench/inference/providers/parse/. Finished
-# documents are skipped on a rerun, so a timeout loses nothing.
+# provider's docstring in parse_bench/inference/providers/parse/. Finished pages
+# are skipped on a rerun, so a timeout loses nothing. Two jobs with disjoint
+# SUBSETS halve the wall-clock time at the same GPU-hours.
 : "${SHA:?set SHA}" "${PIPELINE:?set PIPELINE}"
 source "/scratch/tmp/$USER/idp/code/$SHA/jobs/_env.sh"
+source "$CODE/jobs/_bench.sh"
+bench_data
 
 case "$PIPELINE" in
   lightonocr3_4b_vllm)
@@ -46,14 +50,7 @@ curl -sf "http://127.0.0.1:$PORT/health" >/dev/null || { echo "vLLM not healthy 
 echo "vLLM up on port $PORT after $SECONDS s"
 export "$URL_ENV=http://127.0.0.1:$PORT"
 
-cd "$P/work"
-ARGS=${ARGS:---dataset parsebench-2}
-# SUBSETS="text headings" runs only those subsets (the wrapper allows no commas in values).
-SUBSETS=${SUBSETS:-}
-[ -n "$SUBSETS" ] && ARGS="$ARGS --group ${SUBSETS// /,}"
-"$ENVDIR/bin/parse-bench" download ${ARGS%% --group*}
-OUT=$P/runs/parse${TAG:+-$TAG}/$PIPELINE
-"$ENVDIR/bin/parse-bench" run "$PIPELINE" $ARGS --output_dir="$OUT" --max_concurrent="${CONC:-32}" --open_report=False
+bench_infer "${CONC:-32}"
+echo "inference done after $SECONDS s; score with bench_score.sh"
+grep -E "throughput" "$LOG" | tail -3 || true
 "$PY" -m idp.check_run "$OUT"
-echo "RESULTS: $OUT  (elapsed $SECONDS s)"
-grep -E "throughput|Avg prompt" "$LOG" | tail -3 || true
