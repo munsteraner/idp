@@ -34,6 +34,10 @@ conda_tool() {  # conda_tool <name> <binary to check> <conda-forge package>
 }
 conda_tool poppler pdftoppm poppler
 conda_tool tesseract tesseract tesseract
+# conda bakes the install path in, and the install is renamed from *.tmp afterwards.
+export TESSDATA_PREFIX=$P/tools/tesseract/share/tessdata
+# Fail here rather than let the harness record every page as empty text.
+tesseract --list-langs 2>/dev/null | grep -qx eng || { echo "tesseract cannot load eng" >&2; exit 1; }
 
 if ! command -v uv >/dev/null; then
   curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=$P/bin UV_NO_MODIFY_PATH=1 sh
