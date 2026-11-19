@@ -25,9 +25,11 @@ Results: `/scratch/tmp/$USER/idp/runs/unigpt_qwen3_8_27b_oneshot-d246b0f52d-4783
 
 - Job 47833152 (`jobs/fetch.sh`): downloading `Qwen/Qwen3.8-27B-FP8` at commit `c3a462cc` (31 GB) to `cache/hf`, and the vLLM image `vllm/vllm-openai@sha256:cf5b2fdd…` (v0.34.0) to `images/vllm-v0.34.0.sif`. Check with `palma.py logs 47833152`.
 
+- Job 47833344 (`jobs/bench_parse.sh`): first parser baseline, `pymupdf4llm_markdown` on all of ParseBench 2 (CPU). Results in `runs/parse/pymupdf4llm_markdown/`. Rerun the same command if it times out; finished documents are skipped.
+
 ## Next
 
-Priority changed on 2026-11-19: parsing first, schema extraction second (see `DECISIONS.md`).
+Priority changed on 2026-11-19: parsing first, schema extraction second (see `DECISIONS.md`). Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated code search (PRD section 9a), confirmed on held-out data.
 
 1. Download ParseBench 2 to PALMA and run its smoke subset with one CPU parser (`pymupdf4llm_markdown` or `tesseract_eng`) to prove the parse path of the harness end to end.
 2. Reproduce one published open-weight row on PALMA (candidates: PaddleOCR-VL 1.6 or MinerU2.5-Pro on an RTX 4090) and compare with the leaderboard.
