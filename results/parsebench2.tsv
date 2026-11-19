@@ -4,3 +4,4 @@ date	commit	job	pipeline	kind	split	overall	text	formatting	tables	charts	layout
 2026-11-19	7be300aac6	47834543	pypdf_baseline	classical, CPU	all 4317 pages	28.37	52.40	54.01	0.10	0.00	0.00	63.70	9 min on 16 cores	plain text layer, no structure or boxes
 2026-11-19	c5aef6b7e6	47834553	markitdown	classical, CPU	all 4317 pages	32.15	53.86	56.91	11.66	0.41	0.00	70.03	34 min on 16 cores	pdfminer text plus simple tables; best classical forms score so far
 2026-11-19	c2baee7cb7	47834561	tesseract_eng	classical, CPU	all 4317 pages	29.31	45.28	65.70	0.10	0.01	0.00	64.77	32 min on 16 cores	OCR at 300 DPI, plain text; rerun after fixing the data path (job 47834552 scored 0.37 with every page empty)
+2026-11-19	f20683d5a6	47834593	docling_serve	classical (layout and table models), CPU	all 4317 pages	54.53	52.41	72.36	54.77	0.66	77.96	69.05	2h30 on 32 cores	docling-serve v1.17.0 CPU image; 13 dense tables hit the provider timeout of 120 s and count as failed; 4 text pages empty
