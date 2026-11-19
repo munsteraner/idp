@@ -104,3 +104,14 @@ One entry per deviation from `PRD.md`: what changed, why, and the evidence.
 - Full run into the same directory afterwards (job 47836683): skipped exactly the screened pages (for example 102 of 508 text pages) and scored 0.3045073556206037, identical to the original full run (job 47834544).
 
 **Noise floor, sampling part** (`score_split`, dev split, 300 cluster-bootstrap resamples over source groups): one system's overall score has a 95% interval of about ±1.3 points; the paired difference between two systems is much tighter (`pymupdf_text` against `pypdf_baseline`: +1.3 to +2.4 points). The run-to-run part for a sampling model is measured with a second LightOnOCR run.
+
+## 2026-11-20: Published open-weight row reproduced on PALMA (milestone MB)
+
+**Result.** LightOnOCR-3 4B through the harness pipeline `lightonocr3_4b_vllm`, served by vLLM v0.34.0 on one RTX 4090 inside the job (`jobs/bench_vllm.sh`, model `lightonai/LightOnOCR-3-4B` at `b71010f0`), job 47834539, all 4,317 pages, dataset `c300dcf`, scorer 2.1.2:
+
+| | Overall | Text | Formatting | Tables | Charts | Layout | Forms |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Ours | 78.14 | 83.95 | 81.26 | 77.66 | 62.82 | 83.85 | 79.32 |
+| Leaderboard | 78.29 | 84.30 | 81.44 | 78.25 | 62.90 | 84.25 | 78.59 |
+
+**Conclusion.** Every dimension is within 0.75 points, inside the sampling interval of the benchmark (about ±1.3 points overall on dev alone), and part of the gap may be dataset revisions since the leaderboard run. The setup (rendering, vLLM version, request settings, scorer) matches the published one, so our numbers can be compared with the leaderboard. Cost: 3 h 42 min of one RTX 4090 including about 15 min of scoring, 0.4 to 0.7 pages per second depending on the subset (dense tables are slowest).
