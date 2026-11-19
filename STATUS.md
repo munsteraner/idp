@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-19, evening.
+Last updated: 2026-11-19, 21:00.
 
 ## Done
 
@@ -25,7 +25,8 @@ Results: `/scratch/tmp/$USER/idp/runs/unigpt_qwen3_8_27b_oneshot-d246b0f52d-4783
 
 Our own runs are logged in `results/parsebench2.tsv`.
 
-- `pymupdf4llm_markdown` (classical, text layer only) on all of ParseBench 2: overall 50.99; text 45.4, formatting 57.1, tables 58.1, charts 0.9, layout 82.2, forms 62.3. Job 47833344 took 1 h 43 min on 16 cores, close to the 1 h 45 min limit; find out how much of that is scoring before planning many runs.
+- `pymupdf4llm_markdown` (classical, text layer only) on all of ParseBench 2: overall 50.99; text 45.4, formatting 57.1, tables 58.1, charts 0.9, layout 82.2, forms 62.3. Job 47833344 took 1 h 43 min on 16 cores; scoring is only about 10 min of that, the rest is the parser.
+- `pymupdf_text` 30.45 and `pypdf_baseline` 28.37: plain text, so no tables, charts or layout, but `pymupdf_text` beats `pymupdf4llm_markdown` on text (57.9 against 45.4) and forms (67.8 against 62.3). A first concrete case for routing.
 
 ## On PALMA scratch
 
@@ -36,8 +37,15 @@ Our own runs are logged in `results/parsebench2.tsv`.
 
 Reproducing the published LightOnOCR-3 4B row (ParseBench 2 overall 78.29) with `jobs/bench_vllm.sh` (vLLM v0.34.0 on localhost inside the job, harness pipeline `lightonocr3_4b_vllm`, model `lightonai/LightOnOCR-3-4B` at `b71010f0`, Apache 2.0).
 
-- Smoke test on the `strikeout` subset: job 47834534 (gpuexpress-zen4, 1 RTX 4090), results in `runs/parse-smoke/lightonocr3_4b_vllm/`, vLLM log in `logs/vllm-<jobid>.log`.
-- Then the full run without `TAG`/`--group`; resume with the same command if it hits 4 h.
+- Smoke test on `strikeout` (job 47834534): 128/128 pages, no failures, vLLM up in 222 s, 0.71 pages/s, 15 GB RAM.
+- Full run: job 47834539 (gpuexpress-zen4), submitted 20:45, expected about 2 h at 0.6 pages/s. Results in `runs/parse/lightonocr3_4b_vllm/parsebench-2/`, vLLM log in `logs/vllm-47834539.log`. If it hits 4 h, resubmit the same command; finished pages are skipped.
+- Then: log it in `results/parsebench2.tsv`, compare per dimension with the leaderboard row (78.29; text 84.30, formatting 81.44, tables 78.25, charts 62.90, layout 84.25, forms 78.59), and run `python -m idp.score_split <run>/parsebench-2 lightonocr3_4b_vllm --split all` as a CPU job to check it reproduces the official score and to get the bootstrap interval.
+
+Classical parsers (step 4):
+
+- Running: `tesseract_eng` (47834552) and `markitdown` (47834553) on `express`.
+- Docling: image `docling-serve-cpu` v1.17.0 being pulled (fetch job 47834554), then a smoke test with `jobs/bench_docling.sh ... "ARGS=--dataset parsebench-2 --group strikeout" TAG=smoke` and the full run.
+- Unstructured: the provider calls the Unstructured API; a self-hosted `unstructured-api` container would work like Docling. Not started.
 
 ## Next
 
@@ -45,7 +53,7 @@ Priority changed on 2026-11-19: parsing first, schema extraction second (see `DE
 
 1. Done: ParseBench 2 is on PALMA (`work/data_parsebench-2`) and the parse path works end to end.
 2. Reproduce one published open-weight row on PALMA and compare with the leaderboard. Needs a GPU job that starts a vLLM server on localhost and runs the harness against it. Each parser pipeline has its own server settings in `parse_bench/inference/pipelines/parse.py` (for example `paddleocr_vl_1_6_vllm` expects the served model name `PaddleOCR-VL-1.6-0.9B`); read the provider code and the model's vLLM recipe before writing the job.
-3. Fix the screening, development and sealed test sets for ParseBench 2, grouped by source document; measure the noise floor.
+3. Done: splits in `splits/parsebench2.tsv` and the split scorer `src/idp/score_split.py` (see `DECISIONS.md`). Still open: the noise floor. Run LightOnOCR-3 4B a second time on dev (temperature 0.1, so outputs vary) and compare the two runs with `score_split --baseline`.
 4. Run the classical tools that have no leaderboard row (Tesseract, PyMuPDF, pypdf, Docling, Unstructured) as CPU jobs.
 5. Parse cache: store every parser's output per page, so combinations can be scored without re-running parsers.
 6. First combination experiment: route pages or regions to the parser that is best for that content type (upper bound from published scores: about 83.6 against 80.07).
