@@ -35,7 +35,7 @@ PYTHONPATH= apptainer exec --nv --bind "$P" "$SIF" vllm serve "$MODEL" --revisio
   --served-model-name "$SERVED" --host 127.0.0.1 --port "$PORT" \
   --disable-uvicorn-access-log "${FLAGS[@]}" >"$LOG" 2>&1 &
 VLLM=$!
-trap 'kill $VLLM 2>/dev/null; wait $VLLM 2>/dev/null' EXIT
+trap 'kill $VLLM 2>/dev/null; wait $VLLM 2>/dev/null || true' EXIT
 
 for _ in $(seq 180); do
   curl -sf "http://127.0.0.1:$PORT/health" >/dev/null && break

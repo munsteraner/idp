@@ -24,7 +24,7 @@ PYTHONPATH= apptainer exec --writable-tmpfs \
   --env DOCLING_SERVE_MAX_SYNC_WAIT=600 \
   "$SIF" docling-serve run --host 127.0.0.1 --port "$PORT" >"$LOG" 2>&1 &
 SERVER=$!
-trap 'kill $SERVER 2>/dev/null; wait $SERVER 2>/dev/null' EXIT
+trap 'kill $SERVER 2>/dev/null; wait $SERVER 2>/dev/null || true' EXIT
 
 for _ in $(seq 120); do
   curl -sf "http://127.0.0.1:$PORT/health" >/dev/null && break
