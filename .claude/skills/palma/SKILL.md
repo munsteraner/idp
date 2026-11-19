@@ -82,10 +82,13 @@ Check `palma.py logs <jobid>`; the job report at the end of the output shows CPU
 ## Project job scripts
 
 - `jobs/_env.sh`: shared setup sourced by the job scripts (environment, poppler, caches).
-- `jobs/bench_parse.sh`: run and score a CPU parser from the harness on ParseBench, e.g. `palma.py submit jobs/bench_parse.sh SHA=<sha> PIPELINE=pymupdf4llm_markdown`. Results in `runs/parse/<pipeline>/`.
-- `jobs/bench_vllm.sh`: serve a parser model with vLLM on localhost inside a GPU job and run its harness pipeline, e.g. `palma.py submit jobs/bench_vllm.sh SHA=<sha> PIPELINE=lightonocr3_4b_vllm`. Model, revision and server flags are pinned per pipeline in the script; add a `case` entry for a new model. Smoke-test first with `"ARGS=--dataset parsebench-2 --group strikeout" TAG=smoke` (128 pages, about 7 min).
-- `jobs/bench_server.sh`: the same for classical parsers that the harness reaches over HTTP (`docling_serve`, `unstructured_*`), as a CPU job with the server's container image.
+- Bench jobs share `jobs/_bench.sh`. Common variables: `SPLIT=screen|dev|test|all` (default all; runs the unchanged harness on a symlinked copy of that split), `SUBSETS="charts layout"` (space-separated; the wrapper allows no commas), `TAG=x` (output `runs/parse-x/`), `SCORE=0` (inference only). Results always go to `runs/parse[-TAG]/<pipeline>/parsebench-2/`, so a full run after a screening run skips the pages already done (verified 2026-11-20, see `DECISIONS.md`).
+- `jobs/bench_parse.sh`: CPU parsers from the harness, e.g. `palma.py submit jobs/bench_parse.sh SHA=<sha> PIPELINE=pymupdf_text`.
+- `jobs/bench_vllm.sh`: serve a parser model with vLLM on localhost in a GPU job and run inference only, e.g. `PIPELINE=lightonocr3_4b_vllm SPLIT=screen`. Model, revision and server flags are pinned per pipeline in the script; add a `case` entry for a new model. Then score with `jobs/bench_score.sh` (CPU) using the same `SPLIT` and `TAG`. For long runs, two jobs with disjoint `SUBSETS` halve the wall-clock time at the same GPU-hours.
+- `jobs/bench_server.sh`: classical parsers the harness reaches over HTTP (`docling_serve`, `unstructured_*`), with the server's container image, as a CPU job.
+- `jobs/bench_score.sh`: official scoring of a finished run. It counts every page of `SPLIT` and rewrites the run's reports, so use the split the run used. For the score of a full run on one split, with a bootstrap interval or a paired difference, use `jobs/score_split.sh`, which changes nothing.
 - Every bench job ends with `python -m idp.check_run`, which counts empty pages and provider errors. Read that line: some providers turn their own failures into empty pages that the harness counts as successes.
+- Compute policy (`DECISIONS.md`, 2026-11-20): new parser candidates on `SPLIT=screen` first; GPU jobs never score; the cheapest GPU that fits; no GPU type change inside a comparison.
 - `jobs/fetch.sh`: download a pinned model snapshot and/or container image.
 - `jobs/bench_api.sh`: run an ExtractBench pipeline that calls a model API, as a CPU job. Example: `palma.py sync`, then `palma.py submit jobs/bench_api.sh SHA=<sha> PIPELINE=unigpt_qwen3_8_27b_oneshot "ARGS=--test"`. Results land in `runs/<pipeline>-<sha>-<jobid>/`.
 - Benchmark runs do not go on the laptop: it has 14 GB of RAM and a run was killed there for memory on 2026-11-19.

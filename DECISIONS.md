@@ -88,3 +88,19 @@ One entry per deviation from `PRD.md`: what changed, why, and the evidence.
 **Pinned.** Dataset `llamaindex/ParseBench-2` at commit `c300dcf` (v2.06, 2026-11-18), the copy in `work/data_parsebench-2` on PALMA. Scorer `parse-bench` 2.1.2 (v2.05 and later need 2.1.1 or later). The harness downloads the dataset's main branch without a revision, so a later download can change scores: check the commit in `work/data_parsebench-2/.cache/huggingface/download/*.metadata` before comparing runs.
 
 **Why.** The dataset changed six times in its first week. The published leaderboard rows may come from earlier revisions, so a reproduction is compared per dimension and a small gap may be annotation changes rather than setup.
+
+## 2026-11-20: Compute policy: parallel rather than bigger, screen before full runs
+
+**Changed.** How benchmark runs use the cluster (agreed with the user on 2026-11-19, on condition that neither the research framework nor the scores degrade):
+
+- **GPU jobs only run inference.** Scoring runs afterwards as a CPU job (`jobs/bench_score.sh`). It used to hold the GPU idle for 10 to 15 minutes per run.
+- **Parallel jobs over disjoint `SUBSETS`** for long runs, inference only (`SCORE=0`), scored once at the end. Fair-share charges GPU-hours, not wall-clock time, so two GPUs for half as long cost the same priority. Same GPU type for all parts of a run.
+- **New parser candidates run on the screening split first** (`SPLIT=screen`, 20% of every subset, about 870 pages). A candidate gets the full run if it is best, or within the bootstrap interval of the best, on any dimension or subset slot. The rule is generous on purpose: a parser that is good at one content type is what routing needs. The full run goes into the same output directory and skips the screened pages, so nothing is computed twice.
+- **The cheapest GPU that fits.** 1 to 4B parsers run on RTX 4090s (billing weight 24, against 32 for an A100 and 144 for an H200). A different GPU type is used only after measuring that it costs less per page, and never inside one comparison, since different kernels change the outputs slightly.
+
+**Evidence that it does not degrade results** (deterministic parser `pymupdf_text`, dataset `c300dcf`, scorer 2.1.2):
+
+- Screening run (job 47836673): official score on the screen split 0.3018921132268629; `score_split` of the full run on `screen`: 0.3018921132268629.
+- Full run into the same directory afterwards (job 47836683): skipped exactly the screened pages (for example 102 of 508 text pages) and scored 0.3045073556206037, identical to the original full run (job 47834544).
+
+**Noise floor, sampling part** (`score_split`, dev split, 300 cluster-bootstrap resamples over source groups): one system's overall score has a 95% interval of about ±1.3 points; the paired difference between two systems is much tighter (`pymupdf_text` against `pypdf_baseline`: +1.3 to +2.4 points). The run-to-run part for a sampling model is measured with a second LightOnOCR run.
