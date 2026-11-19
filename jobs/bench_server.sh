@@ -56,6 +56,9 @@ echo "server up on port $PORT after $SECONDS s"
 
 cd "$P/work"
 ARGS=${ARGS:---dataset parsebench-2}
+# SUBSETS="text headings" runs only those subsets (the wrapper allows no commas in values).
+SUBSETS=${SUBSETS:-}
+[ -n "$SUBSETS" ] && ARGS="$ARGS --group ${SUBSETS// /,}"
 "$ENVDIR/bin/parse-bench" download ${ARGS%% --group*}
 OUT=$P/runs/parse${TAG:+-$TAG}/$PIPELINE
 "$ENVDIR/bin/parse-bench" run "$PIPELINE" $ARGS --output_dir="$OUT" --max_concurrent="${CONC:-$WORKERS}" --open_report=False

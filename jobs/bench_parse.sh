@@ -13,6 +13,9 @@ cd "$P/work"
 # One thread per Tesseract process; the harness already runs pages in parallel.
 export OMP_THREAD_LIMIT=1
 ARGS=${ARGS:---dataset parsebench-2}
+# SUBSETS="text headings" runs only those subsets (the wrapper allows no commas in values).
+SUBSETS=${SUBSETS:-}
+[ -n "$SUBSETS" ] && ARGS="$ARGS --group ${SUBSETS// /,}"
 "$ENVDIR/bin/parse-bench" download ${ARGS%% --group*}
 OUT=$P/runs/parse/$PIPELINE
 "$ENVDIR/bin/parse-bench" run "$PIPELINE" $ARGS --output_dir="$OUT" --max_concurrent="${CONC:-16}" --open_report=False
