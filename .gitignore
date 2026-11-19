@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+# data, weights and run outputs never go into the repo
+data/
+runs/
+*.sif
+*.safetensors
