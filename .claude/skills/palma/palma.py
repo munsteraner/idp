@@ -223,7 +223,7 @@ def cmd_ro(args: list[str]) -> None:
 def cmd_submit(args: list[str]) -> None:
     dry = "--dry-run" in args
     args = [a for a in args if a != "--dry-run"]
-    env = [a for a in args[1:] if re.fullmatch(r"[A-Z][A-Z0-9_]*=[\w.:/=\- ]*", a)]
+    env = [a for a in args[1:] if re.fullmatch(r"[A-Z][A-Z0-9_]*=[\w.:/=@\- ]*", a)]
     if not args or len(env) != len(args) - 1:
         die("usage: submit <script> [KEY=VALUE ...] [--dry-run]  (values: letters, digits, . : / = - space)")
     args = args[:1]
