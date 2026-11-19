@@ -76,3 +76,15 @@ One entry per deviation from `PRD.md`: what changed, why, and the evidence.
 - The harness we installed already contains ParseBench's scorer and 149 parse pipelines, so the tooling stays.
 - Most open parsers are 1 to 4B models that fit an RTX 4090, the GPU type PALMA II has most of. Iteration is cheaper than with a 27B extractor.
 - The Qwen3.8-27B download is kept: it is a parser candidate itself and the extractor for step two.
+
+## 2026-11-19: ParseBench 2 splits, grouped by source document; dataset and scorer pinned
+
+**Changed.** The PRD asks for a dev split and a sealed test split. For ParseBench 2 they are now fixed in `splits/parsebench2.tsv` (built by `src/idp/splits.py`, deterministic):
+
+- 4,317 cases in 2,614 source-document groups. Pages of one document share a group, also across subsets (73 groups span two subsets, for example a layout page and a table page cut from the same PDF). The keys are the metadata hashes and file names, page markers stripped; forms group by country and form, whatever the fill.
+- Per subset: 40% sealed test, 20% screening, 40% further dev. Screening is part of dev. A quick run scores `screen`; a dev result scores `screen` and `dev`; `test` is scored only to confirm a finished system.
+- `src/idp/score_split.py` scores a finished run on one split. It recombines the official per-page results with the harness's own `aggregate_metrics` and `combine_next_score`, so on split `all` it equals the official score. It reports a 95% cluster-bootstrap interval over source groups and, against a baseline run, the paired difference: the keep-or-reject test of PRD section 9a.
+
+**Pinned.** Dataset `llamaindex/ParseBench-2` at commit `c300dcf` (v2.06, 2026-11-18), the copy in `work/data_parsebench-2` on PALMA. Scorer `parse-bench` 2.1.2 (v2.05 and later need 2.1.1 or later). The harness downloads the dataset's main branch without a revision, so a later download can change scores: check the commit in `work/data_parsebench-2/.cache/huggingface/download/*.metadata` before comparing runs.
+
+**Why.** The dataset changed six times in its first week. The published leaderboard rows may come from earlier revisions, so a reproduction is compared per dimension and a small gap may be annotation changes rather than setup.
