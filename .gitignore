@@ -13,3 +13,6 @@ data/
 runs/
 *.sif
 *.safetensors
+output/
+output-pro/
+data-pro/

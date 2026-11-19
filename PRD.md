@@ -29,7 +29,7 @@ The project has two phases. Phase 1 is research: find the best system on public 
 
 **What makes it different**
 
-Existing open tools (Docling's extractor, NuExtract, Marker) already do PDF plus schema to JSON. None was found to combine verified field-level evidence, an open parser-by-extractor evaluation harness, and a Slurm batch mode. Those three are the project's niche.
+Commercial systems now reach about 96% value F1 on ExtractBench with grounded evidence, and the benchmark ships its own harness. Open-weight systems on its leaderboard are all single one-shot calls: about 90% overall, about 38% on long documents, and no evidence at all. The project's niche is an open-weight pipeline that closes that gap (long lists, wide schemas, verified evidence), with hosted models as a second and third tier. See `DECISIONS.md`.
 
 ## 2. Scope and non-goals
 
@@ -246,7 +246,7 @@ export HF_HOME=$WORK/hf HF_HUB_OFFLINE=1
 apptainer exec --nv -B $WORK idp.sif python -m idp.batch --shard $SLURM_ARRAY_TASK_ID --skip-cached
 ```
 
-**Known risk:** current vLLM releases ship CUDA 13 builds only, and a container uses the host's NVIDIA driver. Check the cluster's driver version before choosing a vLLM version.
+**Driver check:** PALMA II runs NVIDIA driver 620.70.06 with CUDA 13.5 on the RTX 4090 and A100 nodes, so current CUDA 13 builds of vLLM are supported. H200 nodes still to be probed.
 
 ## 7. Evaluation and acceptance
 
@@ -266,7 +266,7 @@ The headline metric is silent-error rate, and every comparison is made per docum
 
 **Scoring**
 
-- One in-house deterministic scorer, version-hashed, on a path no optimizer can write to. No LLM judge in the primary score.
+- For ExtractBench, the benchmark's own deterministic scorer, pinned by commit, so results are comparable with the published leaderboard. An in-house scorer only for datasets it does not cover. No LLM judge in the primary score, and no optimizer can write to the scorer.
 - Canonicalise before comparing: Unicode NFKC, whitespace, dates to ISO, numbers to Decimal with currency and scale separated; per-field tolerance declared in the schema.
 - Arrays of objects: Hungarian matching on mean field similarity with a minimum-similarity gate.
 - Four outcomes per field: correct, wrong, omitted, hallucinated. Schema validity is a separate rate.
@@ -324,9 +324,9 @@ Build the harness and measure existing approaches first; then build the minimal 
 
 | Milestone | Deliverable | Done when |
 | --- | --- | --- |
-| M0 Harness | Repo, scorer with tests, loader and dev/test split for one benchmark, backend interface with cost tracking and caps, fake model backend, CI | Tests pass on a laptop with no GPU; a dummy system scores end to end |
+| M0 Harness | Repo with the official ExtractBench harness pinned, our pipelines registered through its extension API, committed dev/test split, spend caps, CI | The 6-document test subset runs end to end against a real endpoint |
 | MC Cluster | Read-only survey of PALMA II answering section 10; project skills for status, submit, logs and container build; one container built and one GPU job run | A vLLM job on PALMA II returns outputs the harness can score |
-| MB Baselines | Existing approaches run on the dev split: frontier model with the PDF sent directly; text layer plus open model; page images plus open vision model; Docling's extractor; NuExtract3; one parser-then-model combination | Scores with noise floor, cost and time per document, reported per deployment tier |
+| MB Baselines | Baselines are taken from the published leaderboard (58 systems). We reproduce one or two open-model one-shot rows on our own endpoints and measure the noise floor | Our reproduced scores match the published rows within the noise floor |
 | M1 Minimal pipeline | pypdfium2 text plus page images to one model; schema split by top-level field; page and quote per field | Compared against the baselines on the dev split and VAREX |
 | M2 Decisions | Experiments E1 to E4 run and written up | Each gated component has a build or skip decision |
 | M3 Evidence and verify | Block IDs, evidence resolver, locale normaliser, cross-field checks, result contract, static HTML review page | Grounding F1 and silent-error rate reported |

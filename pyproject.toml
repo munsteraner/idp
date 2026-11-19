@@ -1,0 +1,30 @@
+[project]
+name = "idp"
+version = "0.0.1"
+description = "Schema-guided PDF extraction with verified evidence"
+requires-python = ">=3.12,<3.14"
+dependencies = []
+
+[project.scripts]
+idp-bench = "idp.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[dependency-groups]
+# Official ExtractBench harness: dataset download, deterministic scorer, reports.
+# Pinned to a commit because the published leaderboard tracks main, not v1.0.0.
+bench = [
+    "llama-extract-bench[openweights,anthropic] @ git+https://github.com/run-llama/ExtractBench@f3012cd353f4557079fbb6008b220697c5083805",
+]
+dev = ["pytest>=8", "ruff>=0.14"]
+
+[tool.uv]
+default-groups = ["bench", "dev"]
+
+[tool.ruff]
+line-length = 100
