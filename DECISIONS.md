@@ -115,3 +115,17 @@ One entry per deviation from `PRD.md`: what changed, why, and the evidence.
 | Leaderboard | 78.29 | 84.30 | 81.44 | 78.25 | 62.90 | 84.25 | 78.59 |
 
 **Conclusion.** Every dimension is within 0.75 points, inside the sampling interval of the benchmark (about ±1.3 points overall on dev alone), and part of the gap may be dataset revisions since the leaderboard run. The setup (rendering, vLLM version, request settings, scorer) matches the published one, so our numbers can be compared with the leaderboard. Cost: 3 h 42 min of one RTX 4090 including about 15 min of scoring, 0.4 to 0.7 pages per second depending on the subset (dense tables are slowest).
+
+## 2026-11-20: Page-level routing ceiling: +6 points over the best single parser, from cheap parsers alone
+
+**Evidence** (`idp.oracle`, dev split, 2,583 pages, job 47836825; LightOnOCR interval from `score_split`, job 47836826). Per page and scoring slot, the oracle takes the official per-page result of the best of eight finished runs (LightOnOCR-3 4B and seven classical tools); ties go to LightOnOCR.
+
+| | Overall | Text | Formatting | Tables | Charts | Layout | Forms |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| LightOnOCR-3 4B | 78.77 | 84.52 | 81.17 | 76.79 | 65.26 | 84.16 | 80.72 |
+| 95% interval | 77.2–80.3 | | | | | | |
+| Oracle, 8 parsers | 84.78 | 88.84 | 90.06 | 87.70 | 65.39 | 91.28 | 85.42 |
+
+Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and underline 43 of 75 (`pymupdf4llm_markdown`, which reads the decorations from the PDF instead of the pixels); layout 179 of 321; tables about 30% of pages (`pymupdf4llm_markdown`, Docling); forms about 25%. Charts: none.
+
+**What it means.** The ceiling uses the gold labels to choose, so no router reaches it, and selecting the best of eight per page also picks up some noise. But it already exceeds the best published open parser (80.07) with one VLM in the pool, and the wins sit in identifiable places (digital PDFs with a text layer, decorated text, native tables). This makes routing and merging (step 6) the main line of work, ahead of adding more VLMs. The router must decide from features available at parse time: text layer present or not, vector drawings, page type, agreement between parsers.
