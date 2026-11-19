@@ -41,3 +41,7 @@ def main() -> None:
     from extract_bench.cli import main as bench_main
 
     bench_main()
+
+
+if __name__ == "__main__":
+    main()

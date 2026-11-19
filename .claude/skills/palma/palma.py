@@ -9,7 +9,7 @@ Usage:
   palma.py check                 is the shared connection open?
   palma.py status                my jobs, GPU-hours used today, idle GPUs
   palma.py ro <command...>       run a read-only command (allowlisted)
-  palma.py submit <script> [--dry-run]
+  palma.py submit <script> [KEY=VALUE ...] [--dry-run]
                                  validate limits, copy script, sbatch
   palma.py logs <jobid> [-n N]   state plus tail of the job's output
   palma.py cancel <jobid>        scancel, only for idp-* jobs of this user
@@ -223,8 +223,10 @@ def cmd_ro(args: list[str]) -> None:
 def cmd_submit(args: list[str]) -> None:
     dry = "--dry-run" in args
     args = [a for a in args if a != "--dry-run"]
-    if len(args) != 1:
-        die("usage: submit <script> [--dry-run]")
+    env = [a for a in args[1:] if re.fullmatch(r"[A-Z][A-Z0-9_]*=[\w.:/=\- ]*", a)]
+    if not args or len(env) != len(args) - 1:
+        die("usage: submit <script> [KEY=VALUE ...] [--dry-run]  (values: letters, digits, . : / = - space)")
+    args = args[:1]
     path = Path(args[0])
     script = path.read_text()
     o = sbatch_options(script)
@@ -274,7 +276,8 @@ def cmd_submit(args: list[str]) -> None:
     ssh(f"umask 077; mkdir -p {PROJECT}/jobs {PROJECT}/logs; cat > {remote}", stdin=script)
     out_flag = "" if "output" in o else f"-o {PROJECT}/logs/%x-%A_%a.out " if "array" in o \
         else f"-o {PROJECT}/logs/%x-%j.out "
-    jobid = ssh(f"cd {PROJECT} && sbatch --parsable {out_flag}{remote}").strip().splitlines()[-1]
+    export = ("--export=" + shlex.quote(",".join(["ALL"] + env)) + " ") if env else ""
+    jobid = ssh(f"cd {PROJECT} && sbatch --parsable {export}{out_flag}{remote}").strip().splitlines()[-1]
     print(f"submitted {jobid}  {summary}\nscript: {remote}")
 
 

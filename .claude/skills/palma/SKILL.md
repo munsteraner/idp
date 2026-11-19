@@ -19,7 +19,7 @@ All cluster access goes through `.claude/skills/palma/palma.py`. It enforces the
 | --- | --- |
 | `palma.py status` | Own jobs, GPU-hours used today, free GPU nodes |
 | `palma.py ro <cmd>` | Allowlisted read-only command (`sinfo`, `squeue --me`, `sacct`, `scontrol show ...`, `ls`, `cat`, `tail`, `myquota`). No pipes; filter locally |
-| `palma.py submit job.sh [--dry-run]` | Check limits, copy the script to `jobs/`, `sbatch` it |
+| `palma.py submit job.sh [KEY=VALUE ...] [--dry-run]` | Check limits, copy the script to `jobs/`, `sbatch` it; `KEY=VALUE` pairs reach the job as environment variables |
 | `palma.py logs <jobid> [-n N]` | State plus tail of the output file |
 | `palma.py cancel <jobid>` | Only `idp-*` jobs of this user |
 | `palma.py sync` | Snapshot the committed code to `code/<sha>/`; jobs run from a snapshot, never from a moving copy |
@@ -78,3 +78,8 @@ module load apptainer/1.5.0
 ## After each job
 
 Check `palma.py logs <jobid>`; the job report at the end of the output shows CPU and memory efficiency. Lower the next request if efficiency is poor.
+
+## Project job scripts
+
+- `jobs/bench_api.sh`: run an ExtractBench pipeline that calls a model API, as a CPU job. Example: `palma.py sync`, then `palma.py submit jobs/bench_api.sh SHA=<sha> PIPELINE=unigpt_qwen3_8_27b_oneshot "ARGS=--test"`. Results land in `runs/<pipeline>-<sha>-<jobid>/`.
+- Benchmark runs do not go on the laptop: it has 14 GB of RAM and a run was killed there for memory on 2026-11-19.
