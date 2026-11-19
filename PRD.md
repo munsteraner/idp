@@ -56,7 +56,7 @@ The evaluation harness and a set of baselines come before any custom pipeline st
 - Calibrated probability scores. v1 reports an ordinal confidence only.
 - Chart data extraction and handwriting; both are known weak spots of current parsers.
 - An agent process running on the cluster itself. The autoresearch loop (section 9a) runs on the laptop and reaches PALMA II only through Slurm jobs.
-- Evolutionary code-search frameworks (AlphaEvolve, OpenEvolve, ShinkaEvolve) as a dependency. The autoresearch loop is a plain keep-or-reject loop.
+- Paid evolutionary search services (AlphaEvolve runs on Google Cloud). Open-source evolutionary search is in scope, see section 9a.
 - Benchmarks FUNSD, CORD and SROIE.
 
 ## 3. Pipeline requirements
@@ -388,6 +388,20 @@ The loop must not converge on one approach just because it was tried first. Thre
 - The stage table above: any stage whose alternatives have not been measured yet.
 
 Exploration rule: every batch of experiments includes at least one idea that changes a different stage, or combines methods, compared with the current best system. Rejected ideas stay in the backlog with their result, so they are not retried blindly.
+
+**Three kinds of search, by cost of one evaluation**
+
+The goal set by the user on Nov 19, 2026 is the highest benchmark score reachable by combining vision models, classical methods and automated code search. Each kind of search is used where its evaluations are affordable.
+
+| Search | Changes | One evaluation costs | Evaluations affordable |
+| --- | --- | --- | --- |
+| Agent loop (autoresearch style) | Anything: which parsers run, new stages, prompts, code | GPU jobs, minutes to hours | Tens |
+| Prompt optimisation (GEPA in DSPy) | Prompts of model-based stages | Model calls on a subset | Hundreds |
+| Evolutionary code search (OpenEvolve or ShinkaEvolve) | One function at a time: the router, the merger of several parsers' outputs, table repair, post-processing | Seconds on CPU, because it runs on cached parser outputs | Thousands |
+
+The parse cache is what makes the third kind possible: every parser runs over the benchmark once on GPUs, and everything after that (choosing, merging, repairing) is scored on CPUs without touching a model. The mutation model for evolutionary search is an open model, on uniGPT or PALMA.
+
+**Guard against a fake win.** A score reached by fitting the benchmark's pages is worthless. All three searches see only the development split; the sealed test split and a second benchmark decide whether a gain is real. Evolutionary search is the most prone to overfitting, so its results are always re-scored on held-out documents before they count.
 
 **One iteration**
 
