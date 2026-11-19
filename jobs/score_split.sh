@@ -2,7 +2,7 @@
 #SBATCH --job-name=idp-score-split
 #SBATCH --partition=express
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=16G
+#SBATCH --mem=4G
 #SBATCH --time=01:30:00
 # Score a finished ParseBench 2 run on one split, with a cluster-bootstrap interval;
 # with BASE_PIPELINE, also the paired difference against that run.
