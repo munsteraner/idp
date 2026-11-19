@@ -22,7 +22,7 @@ bench = [
     "llama-extract-bench[openweights,anthropic] @ git+https://github.com/run-llama/ExtractBench@f3012cd353f4557079fbb6008b220697c5083805",
 ]
 # Classical parsers the harness runs locally (Tesseract needs its binary, installed by jobs/_env.sh).
-parsers = ["pytesseract>=0.3.10", "markitdown[pdf]>=0.1", "docling-core>=2"]
+parsers = ["pytesseract>=0.3.10", "markitdown[pdf]>=0.1", "docling-core>=2", "unstructured-client>=0.30"]
 dev = ["pytest>=8", "ruff>=0.14"]
 
 [tool.uv]
