@@ -222,3 +222,17 @@ Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and unde
 **Change.** `idp.merge --layout-from RUN:PIPELINE` (`idp.merge_layout.transplant_layout`): the merged result keeps LightOnOCR's markdown and page metadata, and its layout items are replaced by KDL's, converted to the format LightOnOCR's adapter reads (text into `value`; Chart and Flowchart mapped to Picture, as the KDL adapter does).
 
 **Result** on dev: `merge_v7_nosnap` (decorf, trunc, sparse, KDL layout) **81.07**, +0.63 [+0.28, +0.97] over `merge_v6`, layout **+3.80 [+1.66, +5.79]** (above the layout noise floor of 0.78), all other dimensions identical. Snapping KDL's boxes to PDF words hurts (layout 87.71 against 89.06): KDL's boxes are already tight, so `snap` is not applied to them. With the chart router: `route_charts_v7` **82.58**, +0.59 [+0.26, +0.91] over `route_charts`, +3.81 over LightOnOCR alone.
+
+## 2026-11-20: Sealed test split confirms the dev gains (first use of the test split)
+
+**What was run.** The test split (1,734 pages, never used to choose or tune anything before) was scored once for the systems kept so far. KDL-Frontier-Parser-nano-v2 inference on the test pages (job 47843897; 17 empty pages, 16 of them complex table headers), `merge_v6` built on test from the full-set LightOnOCR and pymupdf4llm runs (job 47843898), `route_charts` on test. All test outputs live in `runs/parse-test/`; LightOnOCR's test pages are read from its full-set reports without rescoring. Paired cluster bootstrap against LightOnOCR (`score_split`, jobs 47844253 and 47844257).
+
+| System | Test overall | Paired difference on test | Dev difference |
+| --- | --- | --- | --- |
+| LightOnOCR-3 4B | 77.20 | | |
+| `merge_v6` | 78.67 | **+1.47 [+1.12, +1.96]** | +1.66 |
+| `route_charts` | 80.74 | **+3.54 [+2.80, +4.25]** | +3.22 |
+
+Per dimension on test (`route_charts` against LightOnOCR): text −0.10 [−0.28, 0.00], formatting +5.88 [+4.64, +7.07], tables +1.56 [+0.16, +4.25], charts +12.28 [+8.43, +14.74], layout +1.27 [+0.14, +2.42], forms +0.35 [−0.08, +1.06].
+
+**Conclusion.** The gains hold on held-out documents at the same size as on dev; there is no sign of overfitting to dev. Absolute scores are lower on test than on dev for every system (LightOnOCR 77.20 against 78.77), so test pages are somewhat harder; comparisons are only made within one split. Still open on test: the `sparse` step alone (`merge_nosparse` registered for that) and `route_charts_v7` (KDL layout); the session ended before those ran.

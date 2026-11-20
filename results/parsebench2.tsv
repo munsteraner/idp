@@ -25,3 +25,5 @@ date	commit	job	pipeline	kind	split	overall	text	formatting	tables	charts	layout
 2026-11-20	345d69ce85	47843953	merge_v7	merge_v6 steps with KDL layout items, snapped	dev 2583 pages	80.84	84.50	87.35	79.71	65.26	87.71	80.53	3 min	snapping KDL boxes hurts (layout 87.71 against 89.06 unsnapped)
 2026-11-20	345d69ce85	47843954	merge_v7_nosnap	merge: decorf + trunc + sparse, layout items from KDL	dev 2583 pages	81.07	84.50	87.35	79.71	65.26	89.06	80.53	3 min	kept: +0.63 [+0.28, +0.97] over merge_v6; layout +3.80
 2026-11-20	345d69ce85	47844030	route_charts_v7	router: KDL for chart pages, merge_v7_nosnap elsewhere	dev 2583 pages	82.58	84.50	87.39	79.76	74.26	89.06	80.53	3 min	best so far: +0.59 [+0.26, +0.91] over route_charts; +3.81 over LightOnOCR
+2026-11-20	e4286bec47	47843898, 47844257	merge_v6	see dev row	test 1734 pages	78.67	83.07	87.30	80.36	59.16	84.57	77.57	3 min	sealed test: +1.47 [+1.12, +1.96] over LightOnOCR (77.20 on test); dev +1.66
+2026-11-20	e4286bec47	47843897, 47844253	route_charts	see dev row	test 1734 pages	80.74	83.00	87.27	80.51	71.43	84.65	77.57	3 min	sealed test: +3.54 [+2.80, +4.25] over LightOnOCR; dev +3.22

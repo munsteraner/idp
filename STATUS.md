@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-20, 17:00.
+Last updated: 2026-11-20, evening.
 
 ## Done
 
@@ -31,7 +31,10 @@ Noise floor for changes that re-run a model: 0.42 overall, 1.85 tables, 0.89 cha
 
 ## In progress
 
-- **Confirmation on the sealed test split** (1,734 pages; first use of the test split). KDL inference on test (job 47843897, `runs/parse-test/kdl_frontier_nano_v2`), `merge_v6` on test (job 47843898, done), then `route_charts`, `merge_v7_nosnap` and `route_charts_v7` on test (`jobs/route.sh ... SPLIT=test TAG=test FIRST_ROOT=runs/parse-test SECOND_ROOT=runs/parse-test`) and paired comparisons against LightOnOCR's test pages (`runs/scores/*-vs-lightonocr3_4b_vllm-test.json`). All test outputs live under `runs/parse-test/`, so dev reports are never rewritten.
+- **Test confirmation, partly done** (`DECISIONS.md`, 2026-11-20): on the sealed test split `merge_v6` gains +1.47 [+1.12, +1.96] and `route_charts` +3.54 [+2.80, +4.25] over LightOnOCR (77.20), matching dev. KDL's test outputs are in `runs/parse-test/kdl_frontier_nano_v2`, `merge_v6` and `route_charts` test runs in `runs/parse-test/`.
+- Still to run on test (the PALMA connection dropped before they ran; check `runs/parse-test/` and `runs/scores/*-test.json` first, a chain may have started them):
+  1. `jobs/merge.sh NAME=merge_v7_nosnap STEPS=decorf-trunc-sparse LAYOUT_FROM=kdl_frontier_nano_v2 LAYOUT_ROOT=runs/parse-test SPLIT=test TAG=test`, then `jobs/route.sh NAME=route_charts_v7 RULE=charts FIRST=merge_v7_nosnap SPLIT=test TAG=test FIRST_ROOT=runs/parse-test SECOND_ROOT=runs/parse-test`, then `jobs/score_split.sh PIPELINE=route_charts_v7 SPLIT=test RUN=runs/parse-test/route_charts_v7/parsebench-2 BASE_PIPELINE=lightonocr3_4b_vllm`.
+  2. The `sparse` step alone: `jobs/merge.sh NAME=merge_nosparse STEPS=decorf-trunc-snap SPLIT=test TAG=test`, then `jobs/score_split.sh PIPELINE=merge_v6 SPLIT=test RUN=runs/parse-test/merge_v6/parsebench-2 BASE_PIPELINE=merge_nosparse BASE_RUN=runs/parse-test/merge_nosparse/parsebench-2`.
 
 ## Results so far
 
@@ -66,7 +69,7 @@ Dev split (2,583 pages): LightOnOCR 78.77, KDL-Frontier-Parser-nano-v2 80.54, `m
 Priority set on 2026-11-19: parsing first, schema extraction second. Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated search (PRD section 9a), confirmed on held-out data.
 
 1. Done: ParseBench 2 on PALMA; LightOnOCR-3 4B reproduced; splits and noise floors; classical tools measured.
-2. Finish the test confirmation (in progress) and write it into `DECISIONS.md`, including whether the `sparse` step (thresholds chosen on dev) holds.
+2. Finish the test confirmation: `route_charts_v7` and the `sparse` step alone (commands under In progress).
 3. Tables, the largest remaining gap (79.8 against an oracle of 90.2 on dev): choose per table among LightOnOCR, KDL and the text layer. Candidate signal: agreement between the three versions of a table (consensus), which needs no labels.
 4. Layout: done for now. KDL's layout items under LightOnOCR's text (89.06 on dev, oracle 91.8).
 5. More VLMs, screened first (`SPLIT=screen`): Infinity-Parser2 Pro (78.41), Chandra 2 (77.45), MinerU2.5-Pro (76.77), PaddleOCR-VL 1.6, dots.mocr. Add a `case` entry in `jobs/bench_vllm.sh` from each provider's docstring.
