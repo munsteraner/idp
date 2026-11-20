@@ -196,3 +196,11 @@ Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and unde
 **Change.** Step `decorf`: like `decor`, but nested decoration markup inside a span is stripped, and a span of 8 or more characters without an exact occurrence goes to its best approximate occurrence (`rapidfuzz` partial alignment, similarity ≥ 90, set in advance, not tuned; aligned length within 0.8 to 1.25 times the span). 1,271 spans placed on dev against 1,116.
 
 **Result** on dev: `merge_v6` (decorf, trunc, sparse, snap) **80.43**, +0.19 [+0.12, +0.26] over `merge_v5`; formatting +1.12 [+0.71, +1.57] (strikeout 52.5 → 65.7, underline 60.6 → 64.5); nothing else changes. Kept; `decorf` replaces `decor`.
+
+## 2026-11-20: Rejected: re-running truncated pages with a larger output budget (idea 5)
+
+**Test.** LightOnOCR-3 4B re-run on the 103 dev pages whose output ends inside an unfinished table, with a 28,672-token output budget instead of the harness's 12,288 (`lightonocr3_4b_vllm_long`, registered in `idp.parse_pipelines`, server `--max-model-len 36864`; job 47839918, 80 min on one RTX 4090). Merge `merge_v6_long`: the re-run page replaces the base page where it finishes its tables (60 of 103 pages; 39 still ran out), then the `merge_v6` steps.
+
+**Why it looked promising.** On long dense tables that LightOnOCR does finish within the default budget, it beats the text-layer table by about 10 points (71.0 against 60.3). 82 of 90 truncations were long tables, not repetition loops.
+
+**Result** on dev, against `merge_v6`: 80.40 against 80.43, −0.04 [−0.10, +0.01]; tables −0.25 [−0.63, +0.05]. Rejected. On the pages long enough to hit the budget, LightOnOCR's completed tables are no better than the text-layer table `trunc` already puts in.

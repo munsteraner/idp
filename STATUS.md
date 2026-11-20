@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-20, 13:20.
+Last updated: 2026-11-20, 15:30.
 
 ## Done
 
@@ -51,26 +51,7 @@ All runs are logged in `results/parsebench2.tsv` (ParseBench 2, all 4,317 pages,
 
 ## In progress
 
-Nothing is running.
-
-## Best system so far
-
-`merge_v6` (LightOnOCR-3 4B plus four merge steps using `pymupdf4llm_markdown` and the PDF text layer, built from the parse cache): **80.43 on dev** against 78.77 for LightOnOCR alone. Steps, each kept by a paired interval excluding zero:
-
-| Step | What it does | Gain on dev |
-| --- | --- | --- |
-| `decorf` | strikeout and underline from the text layer, approximate placement | +0.84 overall, formatting +5.06 (exact placement); approximate placement +0.19 more, formatting +1.12 |
-| `trunc` | tables LightOnOCR left unfinished at its output budget replaced by the text-layer table | +0.32, tables +2.09, forms −0.18 |
-| `sparse` | a page's tables swapped when LightOnOCR's hold far fewer cells (thresholds chosen on dev) | +0.14, tables +0.83 |
-| `snap` | text boxes snapped to the PDF's word boxes | +0.18, layout +1.09 |
-
-Rejected: `corner` (+0.03, interval includes zero). Not yet scored on the test split. Build and score: `jobs/merge.sh NAME=merge_v6 STEPS=decorf-trunc-sparse-snap`.
-
-Noise floor for changes that re-run a model (two LightOnOCR runs on dev): 0.42 overall, 1.85 tables, 1.17 forms (`DECISIONS.md`). Merges from the same cached base run need only the paired interval.
-
-## In progress
-
-- IDEAS.md idea 5: LightOnOCR re-run with a 28,672-token output budget on the 103 dev pages it cut off (`lightonocr3_4b_vllm_long`, case list `runs/cases/trunc-dev.txt`). On long tables it does finish, LightOnOCR beats the text-layer table by about 10 points. Now on `gpuexpress-zen4` as job 47839918 (gpu4090 had 133 pending jobs). When done: add `merge_v6_long` to `MERGES`, `jobs/merge.sh NAME=merge_v6_long STEPS=decorf-trunc-sparse-snap OVERRIDE=lightonocr3_4b_vllm_long`, then `score_split.sh PIPELINE=merge_v6_long BASE_PIPELINE=merge_v6`. It re-runs a model on those pages, so check the gain against the noise floor too.
+- IDEAS.md idea 4, a second VLM: KDL-Frontier-Parser-nano-v2 (best published open parser, 80.07; charts 73.55 against LightOnOCR's 62.90) on the screening split, job 47839982 (`bench_vllm_express.sh PIPELINE=kdl_frontier_nano_v2 SPLIT=screen`). Weights are AGPL-3.0: fine for research; would constrain deployment as a network service. When done: `bench_score.sh PIPELINE=kdl_frontier_nano_v2 SPLIT=screen`, then compare per slot with LightOnOCR on screen (`score_split.sh PIPELINE=lightonocr3_4b_vllm SPLIT=screen`). If it wins charts (or any slot), run the rest of dev and try a chart merge: LightOnOCR labels chart blocks, so KDL's chart tables can replace them there.
 
 ## Next
 

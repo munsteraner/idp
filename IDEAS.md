@@ -30,7 +30,7 @@ Numbers below: mean per-page score on dev (×100) from `runs/scores/page-scores-
 - **Hypothesis.** Re-running only the pages where LightOnOCR's output ends inside an unclosed table, with a larger output budget (the model's context allows more than the harness's 12,288 tokens), gives LightOnOCR's own complete table, which may beat the text-layer table that `trunc` puts in.
 - **Evidence.** 93 dev pages trigger `trunc`. Unknown: how many truncations are genuinely long tables and how many are repetition loops, which more budget would not fix.
 - **Test.** Count repeated rows in the partial tables first. Then a GPU run on those pages only, with a separate pipeline name; this re-runs a model, so the noise floor applies (`DECISIONS.md`).
-- **Status.** Open.
+- **Status.** Rejected (2026-11-20): 82 of 90 truncations are long tables, not loops, and 60 of 103 pages finish with a 28,672-token budget, but the merge loses −0.04 [−0.10, +0.01] against `merge_v6` (tables −0.25). The text-layer table is as good as LightOnOCR's own on these pages.
 
 ## 4. More VLM parsers in the pool
 
