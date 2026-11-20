@@ -407,7 +407,7 @@ The parse cache is what makes the third kind possible: every parser runs over th
 
 1. Pick a hypothesis from the error analysis of the current best system.
 2. Implement it and run the fixed dev subset, on APIs or as Slurm jobs within the standing limits.
-3. Keep the change only if the paired per-document gain excludes zero and exceeds the noise floor; otherwise discard it.
+3. Keep the change only if the paired per-document gain excludes zero and exceeds the noise floor; otherwise discard it. The noise floor for changes that re-run a model is measured (`DECISIONS.md`, 2026-11-20): 0.42 overall, 1.85 tables, 1.17 forms. Merges computed from the same cached base run need only the paired interval.
 4. Append one row to the results log (config, scores with confidence interval, cost, time, kept or rejected) and a short entry to `DECISIONS.md`.
 
 **Tools the loop may use**

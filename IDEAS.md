@@ -9,7 +9,7 @@ Numbers below: mean per-page score on dev (×100) from `runs/scores/page-scores-
 - **Hypothesis.** LightOnOCR reads pixels and drops text decorations; the PDF text layer and its drawn lines carry them. Keeping LightOnOCR's markdown and wrapping the matching spans in the decoration markup found by the text-layer parser raises formatting without hurting anything else.
 - **Evidence.** Strikeout: LightOnOCR 13.0, `pymupdf4llm_markdown` 74.8 (wins 55 of 77 pages). Underline: 20.0 against 58.9 (43 of 75). Both slots weigh 1/16 of formatting, so the ceiling is about +6 formatting points, about +1 overall. No page marks strikeout with a PDF annotation (`runs/features/parsebench2-pages.tsv`); the decorations are drawn lines, so they must come from the parser's span analysis, not from annotations.
 - **Test.** Merge on the cached `result.json` files (no parser re-run), write the merged outputs in the harness results layout, score with the official scorer on dev, compare with `score_split --baseline` against LightOnOCR alone. Watch `text/formatting` and `text/text` for false decorations.
-- **Status.** Open. First candidate: cheap, CPU only, clear mechanism.
+- **Status.** Kept (2026-11-20): `merge_decor`, dev overall +0.84 [+0.69, +0.99], formatting +5.06. Next for this idea: fuzzy span matching (strikeout reaches 52.5 of a possible 74.8). See `DECISIONS.md`.
 
 ## 2. Choose per table between the VLM and the text-layer tables
 

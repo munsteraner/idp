@@ -129,3 +129,25 @@ One entry per deviation from `PRD.md`: what changed, why, and the evidence.
 Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and underline 43 of 75 (`pymupdf4llm_markdown`, which reads the decorations from the PDF instead of the pixels); layout 179 of 321; tables about 30% of pages (`pymupdf4llm_markdown`, Docling); forms about 25%. Charts: none.
 
 **What it means.** The ceiling uses the gold labels to choose, so no router reaches it, and selecting the best of eight per page also picks up some noise. But it already exceeds the best published open parser (80.07) with one VLM in the pool, and the wins sit in identifiable places (digital PDFs with a text layer, decorated text, native tables). This makes routing and merging (step 6) the main line of work, ahead of adding more VLMs. The router must decide from features available at parse time: text layer present or not, vector drawings, page type, agreement between parsers.
+
+## 2026-11-20: Run-to-run noise floor; keep rule for model re-runs
+
+**Evidence.** Two identical LightOnOCR-3 4B runs on the dev split (rep1 job 47834539, rep2 jobs 47836748 and 47836751, same image, model, settings and GPU type), paired cluster bootstrap (`score_split`, job 47837161):
+
+| | Overall | Text | Formatting | Tables | Charts | Layout | Forms |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| rep2 − rep1 | +0.17 | +0.20 | −0.02 | +1.11 | −0.03 | +0.31 | −0.57 |
+| paired 95% | −0.07…+0.42 | −0.08…+0.51 | −0.26…+0.20 | +0.42…+1.85 | −0.89…+0.88 | −0.17…+0.78 | −1.17…−0.05 |
+
+**What it means.** The paired bootstrap over pages does not capture the model's own randomness (temperature 0.1; long tables vary most). On tables and forms the same system run twice shows a paired difference that excludes zero. So:
+
+- **A change that re-runs a model** is kept only if its paired interval excludes zero *and* its gain exceeds the noise floor: 0.42 overall, 0.51 text, 0.26 formatting, 1.85 tables, 0.89 charts, 0.78 layout, 1.17 forms (the outer bounds above). Better: compare against a second run of the baseline, or run both twice.
+- **A merge or choice computed from the same cached base run** changes only what it changes; the paired interval alone decides, since run-to-run noise is identical on both sides.
+
+## 2026-11-20: Kept: transfer strikeout and underline from the text layer (merge_decor)
+
+**Change.** `idp.merge_decorations`: keep LightOnOCR's output and wrap each span that `pymupdf4llm_markdown` marks as `~~strikeout~~` or `<u>underline</u>` where the same text occurs in it (whitespace-insensitive, dashes and quotes folded, spans of 4 characters or more, never across a tag). Uses only the two parse outputs. Registered as its own pipeline `merge_decor` (`idp.parse_pipelines`, layout boxes from `lightonocr3`) and scored by the official scorer.
+
+**Result** on dev (job 47837129; paired against LightOnOCR rep1, job 47837162): overall 79.61 against 78.77, **+0.84 [+0.69, +0.99]**; formatting **+5.06 [+4.16, +5.94]** (strikeout 13.0 → 52.5, underline 20.0 → 60.6, formatting on text pages 83.8 → 89.4); text −0.02 [−0.06, 0.00]; tables, charts, layout, forms unchanged. Kept. Not yet scored on the test split.
+
+**Open.** Strikeout stays below `pymupdf4llm` alone (74.8): spans that the VLM transcribed differently (for example "Planning Directorr" against "Planning Director r") or dropped are not matched. Fuzzy matching is the next step for this idea.
