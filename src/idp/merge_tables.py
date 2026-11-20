@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import re
 
-_TABLE_OPEN = re.compile(r"<table\b", re.I)
-_TABLE_CLOSE = re.compile(r"</table\s*>", re.I)
-_TABLE = re.compile(r"<table\b.*?</table\s*>", re.S | re.I)
+_TABLE_OPEN = re.compile(r"<table\b", re.IGNORECASE)
+_TABLE_CLOSE = re.compile(r"</table\s*>", re.IGNORECASE)
+_TABLE = re.compile(r"<table\b.*?</table\s*>", re.DOTALL | re.IGNORECASE)
 _NUM = re.compile(r"\d[\d,.]*\d|\d")
 _TAG = re.compile(r"<[^>]+>")
 
@@ -52,14 +52,14 @@ def fix_truncated_table(base: str, donor: str) -> tuple[str, int]:
     return base[:start].rstrip() + "\n\n" + replacement + "\n", 1
 
 
-_ROW = re.compile(r"(<tr\b[^>]*>)(.*?)(</tr\s*>)", re.S | re.I)
-_CELL_ATTRS = re.compile(r"<t([dh])\b([^>]*)>", re.I)
+_ROW = re.compile(r"(<tr\b[^>]*>)(.*?)(</tr\s*>)", re.DOTALL | re.IGNORECASE)
+_CELL_ATTRS = re.compile(r"<t([dh])\b([^>]*)>", re.IGNORECASE)
 
 
 def _row_width(row_inner: str) -> int:
     width = 0
     for _, attrs in _CELL_ATTRS.findall(row_inner):
-        m = re.search(r'colspan\s*=\s*"?(\d+)', attrs, re.I)
+        m = re.search(r'colspan\s*=\s*"?(\d+)', attrs, re.IGNORECASE)
         width += int(m.group(1)) if m else 1
     return width
 
@@ -70,7 +70,7 @@ def add_missing_corner_cell(table: str) -> tuple[str, int]:
     Vision parsers often drop the empty top-left (stub) cell of a header row, which shifts every column
     header one place left. Tables with rowspans are left alone, since their rows are legitimately uneven.
     """
-    if re.search(r"rowspan", table, re.I):
+    if re.search(r"rowspan", table, re.IGNORECASE):
         return table, 0
     rows = list(_ROW.finditer(table))
     if len(rows) < 3:
@@ -80,7 +80,7 @@ def add_missing_corner_cell(table: str) -> tuple[str, int]:
     if widths[0] != body - 1:
         return table, 0
     first = rows[0]
-    kind = "th" if re.search(r"<th\b", first.group(2), re.I) else "td"
+    kind = "th" if re.search(r"<th\b", first.group(2), re.IGNORECASE) else "td"
     fixed = first.group(1) + f"<{kind}></{kind}>" + first.group(2) + first.group(3)
     return table[: first.start()] + fixed + table[first.end() :], 1
 
@@ -98,7 +98,7 @@ def fix_corner_cells(markdown: str) -> tuple[str, int]:
     return _TABLE.sub(repl, markdown), count
 
 
-_CELL_TEXT = re.compile(r"<t[dh]\b[^>]*>(.*?)</t[dh]\s*>", re.S | re.I)
+_CELL_TEXT = re.compile(r"<t[dh]\b[^>]*>(.*?)</t[dh]\s*>", re.DOTALL | re.IGNORECASE)
 
 
 def _filled_cells(table: str) -> int:

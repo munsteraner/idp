@@ -31,7 +31,7 @@ def pdf_words(pdf: Path) -> list[tuple[float, float, float, float, str]] | None:
             ((x0 - r.x0) / r.width, (y0 - r.y0) / r.height, (x1 - r.x0) / r.width, (y1 - r.y0) / r.height, w)
             for x0, y0, x1, y1, w, *_ in page.get_text("words")
         ]
-    except Exception:
+    except Exception:  # noqa: BLE001  (any PyMuPDF failure on a malformed PDF)
         return None
     return words or None
 

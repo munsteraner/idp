@@ -66,7 +66,7 @@ def _features(path: Path) -> dict:
                 row["annots_underline"] += 1
             else:
                 row["annots_other"] += 1
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  (record any PyMuPDF failure, keep going)
         row["error"] = str(e)[:200]
     return row
 

@@ -28,8 +28,14 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from idp.merge_decorations import donor_spans, merge as apply_decor
-from idp.merge_tables import fix_corner_cells, fix_truncated_table, replace_sparse_page_tables, unfinished_table_start
+from idp.merge_decorations import donor_spans
+from idp.merge_decorations import merge as apply_decor
+from idp.merge_tables import (
+    fix_corner_cells,
+    fix_truncated_table,
+    replace_sparse_page_tables,
+    unfinished_table_start,
+)
 
 STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap")
 

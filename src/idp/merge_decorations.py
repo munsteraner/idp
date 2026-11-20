@@ -21,7 +21,7 @@ import re
 import sys
 from pathlib import Path
 
-_SPAN_RE = re.compile(r"~~(?P<s>.+?)~~|<u>(?P<u>.+?)</u>", re.S)
+_SPAN_RE = re.compile(r"~~(?P<s>.+?)~~|<u>(?P<u>.+?)</u>", re.DOTALL)
 _INNER_MARKUP_RE = re.compile(r"</?(?:mark|b|i|em|strong|sup|sub|u)>|~~|\*\*|__|(?<!\w)\*(?!\s)|(?<!\s)\*(?!\w)")
 
 

@@ -2,8 +2,9 @@
 
 import sys
 
-import idp.parse_pipelines  # noqa: F401  (registers our pipelines)
 from parse_bench.cli import main
+
+import idp.parse_pipelines  # noqa: F401  (registers our pipelines)
 
 if __name__ == "__main__":
     sys.exit(main())
