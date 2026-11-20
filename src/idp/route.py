@@ -51,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
             if label in labels}
     first_run, first = a.first.rsplit(":", 1)
     second_run, second = a.second.rsplit(":", 1)
-    lo_run, lo = (a.lightonocr_run or "").rsplit(":", 1) if a.lightonocr_run else (None, None)
+    lo_run, lo = a.lightonocr_run.rsplit(":", 1) if a.lightonocr_run else ("", "")
     picks: Counter = Counter()
     for f in sorted(Path(first_run).glob(f"*/{first}/*/*.result.json")):
         subset = f.parent.name
