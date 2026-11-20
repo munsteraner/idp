@@ -14,6 +14,8 @@ from parse_bench.schemas.product import ProductType
 # Merged pipeline -> provider of the layout boxes it keeps (the base parser's).
 MERGES: dict[str, str] = {
     "merge_decor": "lightonocr3",
+    "merge_trunc": "lightonocr3",
+    "merge_v2": "lightonocr3",
 }
 
 
