@@ -263,6 +263,11 @@ def cmd_submit(args: list[str]) -> None:
         if used + need > MAX_GPU_HOURS_PER_DAY:
             problems.append(f"worst case {need:.1f} GPU-h on top of {used:.1f} today "
                             f"exceeds {MAX_GPU_HOURS_PER_DAY:g}")
+    sha = next((e.split("=", 1)[1] for e in env if e.startswith("SHA=")), None)
+    if sha and not problems:
+        require_connection()
+        if ssh(f"[ -d {PROJECT}/code/{sha} ] && echo yes || echo no").strip() != "yes":
+            die(f"code snapshot {sha} is not on PALMA; run 'palma.py sync' first")
     if problems:
         die("submission refused; ask the user before going beyond these limits:\n  - "
             + "\n  - ".join(problems))
