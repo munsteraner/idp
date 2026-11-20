@@ -30,6 +30,13 @@ case "$PIPELINE" in
     SERVED=lightonocr-3-4b URL_ENV=LIGHTONOCR_3_4B_SERVER_URL
     FLAGS=(--gpu-memory-utilization 0.85 --limit-mm-per-prompt '{"image": 1}' --max-model-len 36864)
     ;;
+  kdl_frontier_nano_v2)
+    # AGPL-3.0 weights (DECISIONS.md); revision of the published ParseBench 2 validation. The provider
+    # wants the URL with /v1. The repo has no custom code, so no --trust-remote-code.
+    MODEL=KDLAI/KDL-Frontier-Parser-nano-v2 REV=766505d578be5d99f2358ec9c95224023cd28d5f
+    SERVED=kdl-frontier-parser-nano-v2 URL_ENV=KDL_NANO_ENDPOINT_URL URL_SUFFIX=/v1
+    FLAGS=(--max-model-len 8192 --max-num-seqs 24 --limit-mm-per-prompt '{"image": 1}')
+    ;;
   *) echo "no vLLM settings for $PIPELINE" >&2; exit 2 ;;
 esac
 SIF=$P/images/vllm-v0.34.0.sif
@@ -54,7 +61,7 @@ for _ in $(seq 180); do
 done
 curl -sf "http://127.0.0.1:$PORT/health" >/dev/null || { echo "vLLM not healthy after 15 min"; tail -50 "$LOG"; exit 1; }
 echo "vLLM up on port $PORT after $SECONDS s"
-export "$URL_ENV=http://127.0.0.1:$PORT"
+export "$URL_ENV=http://127.0.0.1:$PORT${URL_SUFFIX:-}"
 
 bench_infer "${CONC:-32}"
 echo "inference done after $SECONDS s; score with bench_score.sh"
