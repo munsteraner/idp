@@ -1,29 +1,41 @@
 # Status
 
-Last updated: 2026-11-20, 15:30.
+Last updated: 2026-11-20, 16:20.
 
 ## Done
 
 - PRD reviewed and revised with the user; decisions in `DECISIONS.md`.
-- PALMA II surveyed; skill and gated wrapper in `.claude/skills/palma/`.
-- Official ExtractBench harness installed and pinned; our pipelines register through `src/idp/bench.py`.
-- Job machinery on PALMA works: code snapshots, environment on scratch, poppler from conda-forge (`jobs/bench_api.sh`).
-- First end-to-end run (6-document test subset, Qwen3.8-27B one-shot on uniGPT, job 47832984): 5 of 6 documents completed.
+- PALMA II surveyed; skill and gated wrapper in `.claude/skills/palma/` (`palma.py wait <jobid>` blocks until a job ends).
+- Official harness installed and pinned (ExtractBench and ParseBench scorers in one package).
+- Job machinery on PALMA: code snapshots, environment on scratch, poppler and tesseract from conda-forge, vLLM and container servers inside jobs, split and case-list data directories.
+- First ExtractBench end-to-end run (6-document test subset, Qwen3.8-27B one-shot on uniGPT, job 47832984): 5 of 6 documents completed; output cut at 32,768 tokens on real_pueblo, empty answer on real_sm0801. Results: `/scratch/tmp/$USER/idp/runs/unigpt_qwen3_8_27b_oneshot-d246b0f52d-47832984/`.
 
-| Document | Pages | Value F1 | Note |
-| --- | --- | --- | --- |
-| veralto_earnings_deck_q4fy25 | 41 | 100.0 | |
-| real_wyo_Goshen_2024 | 10 | 99.8 | |
-| W14-Atascosa | 1 | 93.8 | |
-| bianco-2024 | 10 | 87.9 | |
-| real_pueblo_oct_2025 | 11 | 81.8 | Output cut at 32,768 tokens; recall 69.5%, precision 99.5% |
-| real_sm0801_eco_full | 66 | 0 | Model returned an empty answer |
+## Best system so far
 
-Results: `/scratch/tmp/$USER/idp/runs/unigpt_qwen3_8_27b_oneshot-d246b0f52d-47832984/`.
+`route_charts`: **81.99 on dev** against 78.77 for LightOnOCR-3 4B alone (+3.22). Built from the parse cache plus one extra model run:
+
+1. `merge_v6` = LightOnOCR-3 4B + four merge steps from `pymupdf4llm_markdown` and the PDF text layer (80.43 on dev):
+
+   | Step | What it does | Gain on dev |
+   | --- | --- | --- |
+   | `decorf` | strikeout and underline from the text layer, exact and approximate placement | +1.03 overall, formatting +6.2 |
+   | `trunc` | tables LightOnOCR left unfinished at its output budget replaced by the text-layer table | +0.32, tables +2.09 |
+   | `sparse` | a page's tables swapped when LightOnOCR's hold far fewer cells (thresholds chosen on dev) | +0.14, tables +0.83 |
+   | `snap` | text boxes snapped to the PDF's word boxes | +0.18, layout +1.09 |
+
+2. Router (`idp.route`): pages where LightOnOCR sees a chart go to KDL-Frontier-Parser-nano-v2 (AGPL-3.0 weights), all others to `merge_v6`: +1.56 [+0.76, +2.35], charts +8.99.
+
+Build on dev: `jobs/merge.sh NAME=merge_v6 STEPS=decorf-trunc-sparse-snap`, then `jobs/route.sh NAME=route_charts RULE=charts`. Rejected so far: `corner` repair, larger output budget for truncated pages, block-count routing rules beyond charts (`DECISIONS.md`).
+
+Noise floor for changes that re-run a model: 0.42 overall, 1.85 tables, 0.89 charts, 1.17 forms. Merges from the same cached base run need only the paired interval.
+
+## In progress
+
+- **Confirmation on the sealed test split** (1,734 pages; first use of the test split). KDL inference on test (job 47843897, `runs/parse-test/kdl_frontier_nano_v2`), `merge_v6` on test (job 47843898, `runs/parse-test/merge_v6`), then `route_charts` on test (`jobs/route.sh ... SPLIT=test TAG=test FIRST_ROOT=runs/parse-test SECOND_ROOT=runs/parse-test`) and paired comparisons against LightOnOCR's test pages (`runs/scores/route_charts-vs-lightonocr3_4b_vllm-test.json`, `merge_v6-vs-lightonocr3_4b_vllm-test.json`). All test outputs live under `runs/parse-test/`, so dev reports are never rewritten.
 
 ## Results so far
 
-All runs are logged in `results/parsebench2.tsv` (ParseBench 2, all 4,317 pages, dataset `c300dcf`, scorer 2.1.2).
+All runs are logged in `results/parsebench2.tsv`. Full-set runs (all 4,317 pages, dataset `c300dcf`, scorer 2.1.2):
 
 | Parser | Kind | Overall | Text | Formatting | Tables | Charts | Layout | Forms |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -36,44 +48,36 @@ All runs are logged in `results/parsebench2.tsv` (ParseBench 2, all 4,317 pages,
 | `tesseract_eng` | OCR, CPU | 29.31 | 45.28 | 65.70 | 0.10 | 0.01 | 0.00 | 64.77 |
 | `pypdf_baseline` | text layer, CPU | 28.37 | 52.40 | 54.01 | 0.10 | 0.00 | 0.00 | 63.70 |
 
-- **Milestone MB done:** LightOnOCR-3 4B reproduces its published row (78.14 against 78.29, every dimension within 0.75). Our setup matches the leaderboard's (`DECISIONS.md`).
-- No classical tool comes near the VLM on any dimension; the best classical layout score (82.19, `pymupdf4llm_markdown`) is closest. Charts are about 0 for every classical tool.
-- Sampling noise (dev split, cluster bootstrap): ±1.3 points overall for one system; paired differences between two systems are much tighter.
-- **Routing ceiling** (`idp.oracle`, dev): best of the 8 cached parsers per page reaches 84.78 against 78.77 for LightOnOCR alone. Cheap parsers win most strikeout and underline pages (`pymupdf4llm` reads decorations from the PDF), over half of the layout pages and about 30% of table pages; nothing on charts. Details in `DECISIONS.md`.
+Dev split (2,583 pages): LightOnOCR 78.77, KDL-Frontier-Parser-nano-v2 80.54, `merge_v6` 80.43, `route_charts` 81.99.
+
+- **Milestone MB done:** LightOnOCR-3 4B reproduces its published row (78.14 against 78.29, every dimension within 0.75).
+- Sampling noise (dev, cluster bootstrap): ±1.3 points overall for one system; paired differences are much tighter.
+- Routing ceilings (`idp.oracle`, dev): 8 cached parsers 84.78; `merge_v6`, KDL and LightOnOCR 86.92. Remaining gaps against that ceiling: tables 79.8 against 90.2, layout 85.5 against 91.8.
 
 ## On PALMA scratch
 
-- Model `Qwen/Qwen3.8-27B-FP8` at commit `c3a462cc` (31 GB) and `lightonai/LightOnOCR-3-4B` at `b71010f0` in `cache/hf`.
-- Images in `images/`: `vllm-v0.34.0.sif` (from `vllm/vllm-openai@sha256:cf5b2fdd…`), `docling-serve-cpu-v1.17.0.sif` (`quay.io/docling-project/docling-serve-cpu@sha256:ed161d05…`), `unstructured-api-0.1.16.sif` (`quay.io/unstructured-io/unstructured-api@sha256:fcd5230d…`).
+- Models in `cache/hf`: `Qwen/Qwen3.8-27B-FP8` (`c3a462cc`), `lightonai/LightOnOCR-3-4B` (`b71010f0`), `KDLAI/KDL-Frontier-Parser-nano-v2` (`766505d5`).
+- Images in `images/`: `vllm-v0.34.0.sif` (`vllm/vllm-openai@sha256:cf5b2fdd…`), `docling-serve-cpu-v1.17.0.sif` (`quay.io/docling-project/docling-serve-cpu@sha256:ed161d05…`), `unstructured-api-0.1.16.sif` (`quay.io/unstructured-io/unstructured-api@sha256:fcd5230d…`).
 - Tools from conda-forge in `tools/`: poppler, tesseract.
-- Parse outputs per parser and page in `runs/parse/<pipeline>/parsebench-2/<subset>/<pipeline>/<subset>/<name>.result.json`. This is already the parse cache of step 5: combinations can be built from these files and scored with the official scorer without re-running any parser.
-- `runs/parse-rep2/` is the second LightOnOCR run on dev (noise-floor evidence); keep it. Test outputs (`runs/parse-verify`, `runs/parse-smoke`) were deleted on 2026-11-20 with the user's OK (`jobs/cleanup.sh`).
-
-## In progress
-
-- IDEAS.md idea 4, a second VLM: KDL-Frontier-Parser-nano-v2 (best published open parser, 80.07; charts 73.55 against LightOnOCR's 62.90) on the screening split, job 47839982 (`bench_vllm_express.sh PIPELINE=kdl_frontier_nano_v2 SPLIT=screen`). Weights are AGPL-3.0: fine for research; would constrain deployment as a network service. When done: `bench_score.sh PIPELINE=kdl_frontier_nano_v2 SPLIT=screen`, then compare per slot with LightOnOCR on screen (`score_split.sh PIPELINE=lightonocr3_4b_vllm SPLIT=screen`). If it wins charts (or any slot), run the rest of dev and try a chart merge: LightOnOCR labels chart blocks, so KDL's chart tables can replace them there.
+- Parse cache: `runs/parse/<pipeline>/parsebench-2/<subset>/<pipeline>/<subset>/<name>.result.json` (full-set runs and dev-only merges); test-split runs in `runs/parse-test/`; second LightOnOCR dev run in `runs/parse-rep2/` (noise-floor evidence, keep). Scores in `runs/scores/`, page features and block counts in `runs/features/`, case lists in `runs/cases/`, exports for analysis in `runs/exports/`.
 
 ## Next
 
-Priority changed on 2026-11-19: parsing first, schema extraction second (see `DECISIONS.md`). Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated code search (PRD section 9a), confirmed on held-out data.
+Priority set on 2026-11-19: parsing first, schema extraction second. Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated search (PRD section 9a), confirmed on held-out data.
 
-1. Done: ParseBench 2 is on PALMA (`work/data_parsebench-2`) and the parse path works end to end.
-2. Done: LightOnOCR-3 4B reproduced (78.14 against 78.29).
-3. Done: splits in `splits/parsebench2.tsv`, split scorer `src/idp/score_split.py`, sampling noise measured. Still open: run-to-run noise (in progress, see above).
-4. Done: classical tools measured (table above). Optional: Docling on a GPU (`docling-serve` CUDA image v1.17.0, `sha256:3cc7fe3d…`) if it becomes a router candidate; on CPU, 13 dense tables hit the provider's 120 s timeout.
-5. Mostly done: the harness output directories are the parse cache. Missing: the other open VLM parsers. Screen them on `SPLIT=screen` first (compute policy in `DECISIONS.md`); candidates with a pipeline in the harness and a leaderboard row: KDL-Frontier-Parser-nano-v2 (80.07), Infinity-Parser2 Pro (78.41), Chandra 2 (77.45), MinerU2.5-Pro (76.77), PaddleOCR-VL 1.6 (71.42), dots.mocr (64.05, strong text and tables). Read each provider's docstring for its server settings and add a `case` entry to `jobs/bench_vllm.sh`.
-6. Combinations on the parse cache, in progress. Per-page oracle over 8 parsers: 84.78 on dev (`DECISIONS.md`). Page features for a router: `runs/features/parsebench2-pages.tsv` (`idp.page_features`; 99.6% of pages have a text layer, so that alone does not separate cases). Hypotheses with evidence in `IDEAS.md`:
-   - Idea 1, decoration transfer: kept (+0.84). Next: fuzzy span matching.
-   - Idea 2: truncation part kept (`trunc`); choosing between two complete tables still open (736 dev pages where both hold the same numbers: LightOnOCR 83.0, better of the two 91.5).
-   - Idea 3, snap layout boxes to text-layer words.
-   How to add a merge: write the merged `result.json` files as a new pipeline in the harness layout, add its name to `MERGES` in `src/idp/parse_pipelines.py` (provider of its layout boxes), score with `bench_score.sh SPLIT=dev`, compare with `score_split.sh BASE_PIPELINE=lightonocr3_4b_vllm`.
-7. Build the orchestrator: instruction file, `IDEAS.md` backlog, results log, a shell loop that starts a fresh headless Claude Code per iteration, and a permission allowlist (PRD section 9a).
-8. Step two, later: schema extraction on top of the best parse, checked on ExtractBench. Known targets from the first run: output cut at 32,768 tokens on real_pueblo, empty answer on real_sm0801.
+1. Done: ParseBench 2 on PALMA; LightOnOCR-3 4B reproduced; splits and noise floors; classical tools measured.
+2. Finish the test confirmation (in progress) and write it into `DECISIONS.md`, including whether the `sparse` step (thresholds chosen on dev) holds.
+3. Tables, the largest remaining gap (79.8 against an oracle of 90.2 on dev): choose per table among LightOnOCR, KDL and the text layer. Candidate signal: agreement between the three versions of a table (consensus), which needs no labels.
+4. Layout (85.5 against 91.8): KDL is better on layout pages (89.2) but worse on text and forms, and block-count rules did not generalise. Element-level merging (KDL boxes with LightOnOCR text) needs one adapter for both formats; look at converting KDL elements into LightOnOCR's layout format.
+5. More VLMs, screened first (`SPLIT=screen`): Infinity-Parser2 Pro (78.41), Chandra 2 (77.45), MinerU2.5-Pro (76.77), PaddleOCR-VL 1.6, dots.mocr. Add a `case` entry in `jobs/bench_vllm.sh` from each provider's docstring.
+6. Build the orchestrator for the research loop (PRD section 9a): instruction file, `IDEAS.md` backlog, results log, a loop starting a fresh headless Claude Code per iteration, permission allowlist.
+7. Step two, later: schema extraction on top of the best parse, checked on ExtractBench.
 
 ## Open points
 
+- KDL's weights are AGPL-3.0: fine for research; deploying the system as a network service would require offering source. Decide before any deployment.
 - H200 driver not probed yet (job 47830751 was pending in `gpuh200mini`).
+- `gpu4090` often has a long queue (130+ pending jobs on 2026-11-20); `jobs/bench_vllm_express.sh` runs the same job on the idle `gpuexpress-zen4` (one running job per user).
 - The repository is pushed to `github.com:munsteraner/idp` (`main`); the user allowed pushing on 2026-11-20.
 - uniGPT is no longer part of the plan; its pipelines remain as a quick check.
-- Lower the memory request in `jobs/bench_api.sh`: the run used 1.8 GB of 16 GB.
-- Harness quirks to remember: some providers return an empty page instead of an error (`idp.check_run` catches it); the Unstructured provider fails on 6 pages with `NoneType.strip`; Docling's provider timeout is a fixed 120 s. These are the official pipelines' behaviour and stay as they are in reported scores.
+- Harness quirks: some providers return an empty page instead of an error (`idp.check_run` catches it); the Unstructured provider fails on 6 pages with `NoneType.strip`; Docling's provider timeout is a fixed 120 s; the scorer prints `FAILED` for single pages, so wait on jobs with `palma.py wait`, not by grepping logs.
