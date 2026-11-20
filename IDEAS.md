@@ -25,6 +25,12 @@ Numbers below: mean per-page score on dev (×100) from `runs/scores/page-scores-
 - **Test.** Box refinement on cached outputs, scored on dev.
 - **Status.** Kept (2026-11-20): `snap`, layout +1.09 [+0.47, +1.67], overall +0.18. The oracle (91.3) leaves room; next look at missing and wrongly classed elements.
 
+## 6. Choose each page's tables by consensus among LightOnOCR, KDL and the text layer
+
+- **Hypothesis.** Among three independent versions of a table, the one agreeing most with the other two is most often right; this needs no labels.
+- **Evidence** (dev table pages, mean page `table_next`, `runs/exports/tables4-dev.jsonl.gz`): on the 690 search pages, consensus-of-three 82.7 against `merge_v6` 79.5 and KDL 80.9; on the 354 screening pages, consensus 79.6 against KDL 81.2. Choosing between `merge_v6` and KDL by agreement with the text layer: 81.7 and 79.1. Oracle `merge_v6`/KDL: 90.5 and 87.6.
+- **Status.** Not built (2026-11-20): the advantage over always taking KDL flips between the two halves of dev, so the signal is not dependable. Always taking KDL on table pages would help, but no parse-time rule found so far tells table pages from text and forms pages, where KDL is worse. Open: a better agreement measure (cell triples with headers, as the scorer uses) or an element-level table swap.
+
 ## 5. More output budget for LightOnOCR on pages it truncates
 
 - **Hypothesis.** Re-running only the pages where LightOnOCR's output ends inside an unclosed table, with a larger output budget (the model's context allows more than the harness's 12,288 tokens), gives LightOnOCR's own complete table, which may beat the text-layer table that `trunc` puts in.
