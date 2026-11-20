@@ -2,6 +2,7 @@
 
 Steps (each uses only the two parse outputs, no labels):
   decor  strikeout and underline from the donor (``idp.merge_decorations``)
+  decorf the same with approximate placement of spans the two parsers transcribed slightly differently
   trunc  a table the base left unfinished replaced by the donor's matching table (``idp.merge_tables``)
   corner an empty stub cell added where a header row is one cell short of the body (no donor needed)
   sparse all of a page's tables swapped for the donor's when the base tables hold far fewer cells
@@ -30,7 +31,7 @@ from pathlib import Path
 from idp.merge_decorations import donor_spans, merge as apply_decor
 from idp.merge_tables import fix_corner_cells, fix_truncated_table, replace_sparse_page_tables, unfinished_table_start
 
-STEPS = ("decor", "trunc", "corner", "sparse", "snap")
+STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap")
 
 
 def merge_markdown(base: str, donor: str, steps: list[str], min_chars: int = 4) -> tuple[str, Counter]:
@@ -48,6 +49,9 @@ def merge_markdown(base: str, donor: str, steps: list[str], min_chars: int = 4) 
     if "decor" in steps:
         out, n = apply_decor(out, donor_spans(donor), min_chars)
         applied["decor"] += n
+    if "decorf" in steps:
+        out, n = apply_decor(out, donor_spans(donor), min_chars, fuzzy=90)
+        applied["decorf"] += n
     return out, applied
 
 

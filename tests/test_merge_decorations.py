@@ -28,3 +28,16 @@ def test_merge_result_updates_pages_and_markdown():
     assert r["output"]["pages"][0]["markdown"] == "keep ~~this line~~"
     assert r["output"]["markdown"] == "keep ~~this line~~"
     assert r["pipeline_name"] == "m" and base["output"]["markdown"] == "x"
+
+
+def test_fuzzy_places_slightly_different_spans_only_when_enabled():
+    base = "The Planning Director r eviewing authority is authorized."
+    spans = [("s", "Planning Directorr")]
+    assert merge(base, spans)[1] == 0
+    out, n = merge(base, spans, fuzzy=90)
+    assert n == 1 and "~~Planning Director~~ r eviewing" in out
+    assert merge(base, [("s", "Completely unrelated words")], fuzzy=90)[1] == 0
+
+
+def test_nested_underline_inside_strikeout_is_stripped():
+    assert donor_spans("~~<u>old</u> text~~") == [("s", "old text")]

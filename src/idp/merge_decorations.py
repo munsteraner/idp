@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 _SPAN_RE = re.compile(r"~~(?P<s>.+?)~~|<u>(?P<u>.+?)</u>", re.S)
-_INNER_MARKUP_RE = re.compile(r"</?(?:mark|b|i|em|strong|sup|sub)>|\*\*|__|(?<!\w)\*(?!\s)|(?<!\s)\*(?!\w)")
+_INNER_MARKUP_RE = re.compile(r"</?(?:mark|b|i|em|strong|sup|sub|u)>|~~|\*\*|__|(?<!\w)\*(?!\s)|(?<!\s)\*(?!\w)")
 
 
 def donor_spans(markdown: str) -> list[tuple[str, str]]:
@@ -72,11 +72,14 @@ def _inside_markup(text: str, start: int, end: int) -> bool:
     return "<" in segment or ">" in segment or "|" in segment
 
 
-def merge(base: str, spans: list[tuple[str, str]], min_chars: int = 4) -> tuple[str, int]:
+def merge(base: str, spans: list[tuple[str, str]], min_chars: int = 4, fuzzy: int = 0, fuzzy_min_chars: int = 8) -> tuple[str, int]:
     """Base markdown with the donor's decorations applied; returns the text and the number applied.
 
     Each span is placed at its first not-yet-used exact occurrence (whitespace-insensitive) in the base.
     Spans shorter than ``min_chars`` are skipped: short strings match in the wrong place too easily.
+    With ``fuzzy`` > 0, a span of at least ``fuzzy_min_chars`` characters that has no exact occurrence is
+    placed at its best approximate occurrence if the similarity reaches ``fuzzy`` (0-100), so a span the
+    two parsers transcribed slightly differently still transfers.
     """
     edits: list[tuple[int, int, str]] = []
     taken: list[tuple[int, int]] = []
@@ -84,6 +87,7 @@ def merge(base: str, spans: list[tuple[str, str]], min_chars: int = 4) -> tuple[
     for kind, text in spans:
         if len(text) < min_chars:
             continue
+        placed = False
         pos = 0
         while True:
             i = norm.find(text, pos)
@@ -93,8 +97,27 @@ def merge(base: str, spans: list[tuple[str, str]], min_chars: int = 4) -> tuple[
             if not any(start < e and s < end for s, e in taken) and not _inside_markup(base, start, end):
                 taken.append((start, end))
                 edits.append((start, end, kind))
+                placed = True
                 break
             pos = i + 1
+        if placed or not fuzzy or len(text) < fuzzy_min_chars:
+            continue
+        from rapidfuzz.fuzz import partial_ratio_alignment
+
+        al = partial_ratio_alignment(text, norm, score_cutoff=fuzzy)
+        if al is None or not 0.8 * len(text) <= al.dest_end - al.dest_start <= 1.25 * len(text):
+            continue
+        i, j = al.dest_start, al.dest_end
+        while i < j and norm[i] == " ":
+            i += 1
+        while j > i and norm[j - 1] == " ":
+            j -= 1
+        if j <= i:
+            continue
+        start, end = offsets[i], offsets[j - 1] + 1
+        if not any(start < e and s < end for s, e in taken) and not _inside_markup(base, start, end):
+            taken.append((start, end))
+            edits.append((start, end, kind))
     out = base
     for start, end, kind in sorted(edits, reverse=True):
         inner = out[start:end]
