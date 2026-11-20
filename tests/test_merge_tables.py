@@ -44,3 +44,16 @@ def test_corner_cell_added_only_when_header_one_short():
     assert add_missing_corner_cell(ok) == (ok, 0)
     spanned = t.replace("<td>Revenue</td>", '<td rowspan="2">Revenue</td>')
     assert add_missing_corner_cell(spanned) == (spanned, 0)
+
+
+def test_sparse_swap_needs_fewer_cells_coverage_and_numeric_donor():
+    from idp.merge_tables import replace_sparse_page_tables
+    base = "Intro\n\n<table><tr><td>1</td><td>2</td></tr><tr><td>3</td><td>4</td></tr></table>\n\nEnd"
+    rows = "".join(f"<tr><td>{i}</td><td>{i + 1}</td><td>{i + 2}</td></tr>" for i in range(1, 6))
+    donor = f"<table>{rows}</table>"
+    out, n = replace_sparse_page_tables(base, donor)
+    assert n == 1 and out == f"Intro\n\n{donor}\n\nEnd"
+    words = "".join("<tr><td>Name</td><td>Address</td><td>City</td></tr>" for _ in range(5))
+    form = f"<table><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr>{words}</table>"
+    assert replace_sparse_page_tables(base, form)[1] == 0
+    assert replace_sparse_page_tables(base, base)[1] == 0

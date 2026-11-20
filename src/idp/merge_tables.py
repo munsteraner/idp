@@ -96,3 +96,81 @@ def fix_corner_cells(markdown: str) -> tuple[str, int]:
         return out
 
     return _TABLE.sub(repl, markdown), count
+
+
+_CELL_TEXT = re.compile(r"<t[dh]\b[^>]*>(.*?)</t[dh]\s*>", re.S | re.I)
+
+
+def _filled_cells(table: str) -> int:
+    return sum(1 for c in _CELL_TEXT.findall(table) if _TAG.sub("", c).strip())
+
+
+def replace_subset_tables(base: str, donor: str, min_ratio: float = 1.6, min_coverage: float = 0.9) -> tuple[str, int]:
+    """Replace each complete base table that the donor holds in full and much larger.
+
+    A base table is replaced by the donor table sharing the most numbers with it when that donor table
+    contains at least ``min_coverage`` of the base table's numbers and has at least ``min_ratio`` times its
+    filled cells: the base parser then dropped part of the table. Each donor table is used once.
+    """
+    donor_tables = _TABLE.findall(donor or "")
+    if not donor_tables:
+        return base, 0
+    donor_nums = [_numbers(t) for t in donor_tables]
+    donor_cells = [_filled_cells(t) for t in donor_tables]
+    used: set[int] = set()
+    count = 0
+
+    def repl(m: re.Match) -> str:
+        nonlocal count
+        table = m.group(0)
+        nums = _numbers(table)
+        if len(nums) < 3:
+            return table
+        best = max(range(len(donor_tables)), key=lambda i: (len(nums & donor_nums[i]), -i))
+        if best in used:
+            return table
+        coverage = len(nums & donor_nums[best]) / len(nums)
+        if coverage >= min_coverage and donor_cells[best] >= min_ratio * max(_filled_cells(table), 1):
+            used.add(best)
+            count += 1
+            return donor_tables[best]
+        return table
+
+    return _TABLE.sub(repl, base), count
+
+
+def replace_sparse_page_tables(
+    base: str, donor: str, max_ratio: float = 0.6, min_coverage: float = 0.9, min_numeric_share: float = 0.5
+) -> tuple[str, int]:
+    """Swap all of a page's tables for the donor's when the base tables hold far less of the table content.
+
+    Applies when every base table is complete, the base tables together have fewer than ``max_ratio`` of
+    the donor tables' filled cells, the donor tables contain at least ``min_coverage`` of the base tables'
+    numbers, and at least ``min_numeric_share`` of the donor's cells hold a digit (a data table, not a form
+    grid, where the text-layer table is worse). The donor tables take the place of the first base table;
+    the other base tables go. The thresholds were chosen on the dev split (DECISIONS.md, 2026-11-20).
+    """
+    base_tables = list(_TABLE.finditer(base))
+    donor_tables = _TABLE.findall(donor or "")
+    if not base_tables or not donor_tables or unfinished_table_start(base) is not None:
+        return base, 0
+    base_cells = sum(_filled_cells(m.group(0)) for m in base_tables)
+    donor_cells = sum(_filled_cells(t) for t in donor_tables)
+    base_nums = set().union(*(_numbers(m.group(0)) for m in base_tables))
+    donor_nums = set().union(*(_numbers(t) for t in donor_tables))
+    if not base_nums or base_cells >= max_ratio * donor_cells:
+        return base, 0
+    if len(base_nums & donor_nums) / len(base_nums) < min_coverage:
+        return base, 0
+    donor_cell_texts = [c for t in donor_tables for c in _CELL_TEXT.findall(t)]
+    numeric = sum(1 for c in donor_cell_texts if re.search(r"\d", c)) / max(len(donor_cell_texts), 1)
+    if numeric < min_numeric_share:
+        return base, 0
+    out, last = [], 0
+    for i, m in enumerate(base_tables):
+        out.append(base[last : m.start()])
+        if i == 0:
+            out.append("\n\n".join(donor_tables))
+        last = m.end()
+    out.append(base[last:])
+    return "".join(out), 1
