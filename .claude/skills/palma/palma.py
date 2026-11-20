@@ -12,6 +12,7 @@ Usage:
   palma.py submit <script> [KEY=VALUE ...] [--dry-run]
                                  validate limits, copy script, sbatch
   palma.py logs <jobid> [-n N]   state plus tail of the job's output
+  palma.py wait <jobid> [...]    block until the jobs reach a terminal state
   palma.py cancel <jobid>        scancel, only for idp-* jobs of this user
   palma.py put <local> <remote-relative-path>
   palma.py get <remote-relative-path> <local>
@@ -23,6 +24,7 @@ import datetime as dt
 import re
 import shlex
 import subprocess
+import time
 import sys
 from pathlib import Path
 
@@ -293,6 +295,26 @@ def cmd_logs(args: list[str]) -> None:
               f"echo \"--- $f\"; tail -n {n} \"$f\"", check=False))
 
 
+def cmd_wait(args: list[str]) -> None:
+    """Block until each job reaches a terminal Slurm state; print one 'jobid STATE' line per job."""
+    require_connection()
+    jobs = [a for a in args if re.fullmatch(r"\d+(_\d+)?", a)]
+    if not jobs or len(jobs) != len(args):
+        die("usage: wait <jobid> [<jobid> ...]")
+    terminal = ("COMPLETED", "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY", "NODE_FAIL", "PREEMPTED",
+                "BOOT_FAIL", "DEADLINE")
+    pending = list(jobs)
+    while pending:
+        for jid in list(pending):
+            out = ssh(f"sacct -j {jid} -X -n -o state%20", check=False).split()
+            state = out[0] if out else ""
+            if state.startswith(terminal):
+                print(f"{jid} {state}", flush=True)
+                pending.remove(jid)
+        if pending:
+            time.sleep(20)
+
+
 def cmd_cancel(args: list[str]) -> None:
     require_connection()
     if len(args) != 1 or not re.fullmatch(r"\d+(_\d+)?", args[0]):
@@ -368,7 +390,7 @@ def main() -> None:
     cmd, args = sys.argv[1], sys.argv[2:]
     table = {"check": lambda: cmd_check(), "status": lambda: cmd_status(),
              "ro": lambda: cmd_ro(args), "submit": lambda: cmd_submit(args),
-             "logs": lambda: cmd_logs(args), "cancel": lambda: cmd_cancel(args),
+             "logs": lambda: cmd_logs(args), "wait": lambda: cmd_wait(args), "cancel": lambda: cmd_cancel(args),
              "put": lambda: cmd_put(args), "get": lambda: cmd_get(args), "sync": lambda: cmd_sync()}
     if cmd not in table:
         die(f"unknown command '{cmd}'\n{__doc__}")

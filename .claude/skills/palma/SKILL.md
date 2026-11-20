@@ -21,6 +21,7 @@ All cluster access goes through `.claude/skills/palma/palma.py`. It enforces the
 | `palma.py ro <cmd>` | Allowlisted read-only command (`sinfo`, `squeue --me`, `sacct`, `scontrol show ...`, `ls`, `cat`, `tail`, `myquota`). No pipes; filter locally |
 | `palma.py submit job.sh [KEY=VALUE ...] [--dry-run]` | Check limits, copy the script to `jobs/`, `sbatch` it; `KEY=VALUE` pairs reach the job as environment variables |
 | `palma.py logs <jobid> [-n N]` | State plus tail of the output file |
+| `palma.py wait <jobid> [...]` | Block until the jobs reach a terminal Slurm state. Use this to wait; do not grep logs for `FAILED`, since the scorer prints that word for single pages |
 | `palma.py cancel <jobid>` | Only `idp-*` jobs of this user |
 | `palma.py sync` | Snapshot the committed code to `code/<sha>/`; jobs run from a snapshot, never from a moving copy |
 | `palma.py put <local> <rel>` / `get <rel> <local>` | Small files, relative to the project directory; `put` refuses to overwrite |
