@@ -4,9 +4,10 @@ Rules use only the parse outputs (no labels):
   charts  pages where LightOnOCR's raw output has a ``chart`` block go to the second system
   none    every page from the first system (a control: must score exactly like the first system)
 
-The routed pipeline keeps each page's raw provider output, and its name is deliberately not registered
-in ``idp.parse_pipelines``: the layout scorer then picks the adapter per page by matching that raw
-output, so pages from different providers are each scored with their own adapter.
+Each routed page keeps its source result unchanged, including its ``pipeline_name`` (``merge_v6`` or
+``kdl_frontier_nano_v2``): the layout scorer resolves the adapter from that field, so every page is scored
+with its own provider's adapter, while the files sit in the router's own output directory. (With an
+unregistered name instead, the scorer's fallback matcher picked a LlamaParse adapter for LightOnOCR pages.)
 
 Usage: python -m idp.route FIRST_RUN:FIRST SECOND_RUN:SECOND OUT_RUN NAME --rule charts
        [--lightonocr-run RUN:PIPELINE] [--split dev]
@@ -64,9 +65,6 @@ def main(argv: list[str] | None = None) -> int:
             if lo_file.exists() and other.exists() and has_chart_block(json.loads(lo_file.read_text())):
                 choice, source = second, other
         result = json.loads(source.read_text())
-        result["pipeline_name"] = a.name
-        if isinstance(result.get("output"), dict):
-            result["output"]["pipeline_name"] = a.name
         out = a.out_run / subset / a.name / subset / f.name
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(result))

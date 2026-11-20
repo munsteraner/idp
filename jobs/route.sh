@@ -5,7 +5,7 @@
 #SBATCH --mem=32G
 #SBATCH --time=01:00:00
 # Build a page router (idp.route) on the dev split from two cached runs and score it officially.
-# NAME must NOT be in idp.parse_pipelines.MERGES (the layout scorer then picks the adapter per page).
+# Pages keep their source pipeline_name, so the layout scorer picks each page's own adapter.
 # Usage: submit route.sh SHA=<sha> NAME=<router> RULE=<charts|none> [FIRST=merge_v6] [SECOND=kdl_frontier_nano_v2]
 : "${SHA:?set SHA}" "${NAME:?set NAME}" "${RULE:?set RULE}"
 source "/scratch/tmp/$USER/idp/code/$SHA/jobs/_env.sh"
