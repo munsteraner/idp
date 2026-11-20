@@ -47,7 +47,7 @@ All runs are logged in `results/parsebench2.tsv` (ParseBench 2, all 4,317 pages,
 - Images in `images/`: `vllm-v0.34.0.sif` (from `vllm/vllm-openai@sha256:cf5b2fdd…`), `docling-serve-cpu-v1.17.0.sif` (`quay.io/docling-project/docling-serve-cpu@sha256:ed161d05…`), `unstructured-api-0.1.16.sif` (`quay.io/unstructured-io/unstructured-api@sha256:fcd5230d…`).
 - Tools from conda-forge in `tools/`: poppler, tesseract.
 - Parse outputs per parser and page in `runs/parse/<pipeline>/parsebench-2/<subset>/<pipeline>/<subset>/<name>.result.json`. This is already the parse cache of step 5: combinations can be built from these files and scored with the official scorer without re-running any parser.
-- `runs/parse-verify/pymupdf_text/` and `runs/parse-smoke/*` are test outputs; they can be deleted with the user's OK.
+- `runs/parse-rep2/` is the second LightOnOCR run on dev (noise-floor evidence); keep it. Test outputs (`runs/parse-verify`, `runs/parse-smoke`) were deleted on 2026-11-20 with the user's OK (`jobs/cleanup.sh`).
 
 ## In progress
 
@@ -79,7 +79,7 @@ Priority changed on 2026-11-19: parsing first, schema extraction second (see `DE
 ## Open points
 
 - H200 driver not probed yet (job 47830751 was pending in `gpuh200mini`).
-- Commits are local only; nothing is pushed to GitHub.
+- The repository is pushed to `github.com:munsteraner/idp` (`main`); the user allowed pushing on 2026-11-20.
 - uniGPT is no longer part of the plan; its pipelines remain as a quick check.
 - Lower the memory request in `jobs/bench_api.sh`: the run used 1.8 GB of 16 GB.
 - Harness quirks to remember: some providers return an empty page instead of an error (`idp.check_run` catches it); the Unstructured provider fails on 6 pages with `NoneType.strip`; Docling's provider timeout is a fixed 120 s. These are the official pipelines' behaviour and stay as they are in reported scores.
