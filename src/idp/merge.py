@@ -3,6 +3,7 @@
 Steps (each uses only the two parse outputs, no labels):
   decor  strikeout and underline from the donor (``idp.merge_decorations``)
   trunc  a table the base left unfinished replaced by the donor's matching table (``idp.merge_tables``)
+  corner an empty stub cell added where a header row is one cell short of the body (no donor needed)
 
 The merged outputs are written as a new pipeline in the harness results layout (base layout boxes kept),
 so the official scorer scores them like any other run. Register the pipeline name in
@@ -20,9 +21,9 @@ from collections import Counter
 from pathlib import Path
 
 from idp.merge_decorations import donor_spans, merge as apply_decor
-from idp.merge_tables import fix_truncated_table
+from idp.merge_tables import fix_corner_cells, fix_truncated_table
 
-STEPS = ("decor", "trunc")
+STEPS = ("decor", "trunc", "corner")
 
 
 def merge_markdown(base: str, donor: str, steps: list[str], min_chars: int = 4) -> tuple[str, Counter]:
@@ -31,6 +32,9 @@ def merge_markdown(base: str, donor: str, steps: list[str], min_chars: int = 4) 
     if "trunc" in steps:
         out, n = fix_truncated_table(out, donor)
         applied["trunc"] += n
+    if "corner" in steps:
+        out, n = fix_corner_cells(out)
+        applied["corner"] += n
     if "decor" in steps:
         out, n = apply_decor(out, donor_spans(donor), min_chars)
         applied["decor"] += n

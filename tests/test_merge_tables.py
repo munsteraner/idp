@@ -32,3 +32,15 @@ def test_steps_compose():
     out, applied = merge_markdown(base, donor, ["decor", "trunc"])
     assert applied == {"trunc": 1, "decor": 1}
     assert out.startswith("keep ~~this line~~") and out.rstrip().endswith("</table>")
+
+
+def test_corner_cell_added_only_when_header_one_short():
+    from idp.merge_tables import add_missing_corner_cell
+    t = ("<table><tr><th>2024</th><th>2025</th></tr>"
+         "<tr><td>Revenue</td><td>1</td><td>2</td></tr><tr><td>Cost</td><td>3</td><td>4</td></tr></table>")
+    out, n = add_missing_corner_cell(t)
+    assert n == 1 and out.startswith("<table><tr><th></th><th>2024</th>")
+    ok = t.replace("<tr><th>2024</th>", "<tr><th></th><th>2024</th>")
+    assert add_missing_corner_cell(ok) == (ok, 0)
+    spanned = t.replace("<td>Revenue</td>", '<td rowspan="2">Revenue</td>')
+    assert add_missing_corner_cell(spanned) == (spanned, 0)

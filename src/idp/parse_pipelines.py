@@ -16,6 +16,8 @@ MERGES: dict[str, str] = {
     "merge_decor": "lightonocr3",
     "merge_trunc": "lightonocr3",
     "merge_v2": "lightonocr3",
+    "merge_corner": "lightonocr3",
+    "merge_v3": "lightonocr3",
 }
 
 

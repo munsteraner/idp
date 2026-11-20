@@ -50,3 +50,49 @@ def fix_truncated_table(base: str, donor: str) -> tuple[str, int]:
         return base, 0
     replacement = "\n\n".join(tables[best:])
     return base[:start].rstrip() + "\n\n" + replacement + "\n", 1
+
+
+_ROW = re.compile(r"(<tr\b[^>]*>)(.*?)(</tr\s*>)", re.S | re.I)
+_CELL_ATTRS = re.compile(r"<t([dh])\b([^>]*)>", re.I)
+
+
+def _row_width(row_inner: str) -> int:
+    width = 0
+    for _, attrs in _CELL_ATTRS.findall(row_inner):
+        m = re.search(r'colspan\s*=\s*"?(\d+)', attrs, re.I)
+        width += int(m.group(1)) if m else 1
+    return width
+
+
+def add_missing_corner_cell(table: str) -> tuple[str, int]:
+    """Prepend an empty header cell when the first row is exactly one cell narrower than the body.
+
+    Vision parsers often drop the empty top-left (stub) cell of a header row, which shifts every column
+    header one place left. Tables with rowspans are left alone, since their rows are legitimately uneven.
+    """
+    if re.search(r"rowspan", table, re.I):
+        return table, 0
+    rows = list(_ROW.finditer(table))
+    if len(rows) < 3:
+        return table, 0
+    widths = [_row_width(m.group(2)) for m in rows]
+    body = max(set(widths[1:]), key=widths[1:].count)
+    if widths[0] != body - 1:
+        return table, 0
+    first = rows[0]
+    kind = "th" if re.search(r"<th\b", first.group(2), re.I) else "td"
+    fixed = first.group(1) + f"<{kind}></{kind}>" + first.group(2) + first.group(3)
+    return table[: first.start()] + fixed + table[first.end() :], 1
+
+
+def fix_corner_cells(markdown: str) -> tuple[str, int]:
+    """Apply ``add_missing_corner_cell`` to every complete table of the page."""
+    count = 0
+
+    def repl(m: re.Match) -> str:
+        nonlocal count
+        out, n = add_missing_corner_cell(m.group(0))
+        count += n
+        return out
+
+    return _TABLE.sub(repl, markdown), count
