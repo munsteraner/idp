@@ -24,3 +24,15 @@ def test_each_word_snaps_to_one_box_and_tables_stay():
     assert round(title["y"] + title["h"], 2) == 0.23 and round(body["y"], 2) == 0.24
     assert table["x"] == 0.45
     assert pages[0]["items"][0]["bbox"]["y"] == title["y"]
+
+
+def test_transplant_layout_converts_kdl_items():
+    from idp.merge_layout import transplant_layout
+    target = [{"page_number": 1, "width": 1000, "height": 1400, "items": [_item("Text", "old", 0, 0, 1, 1)]}]
+    seg = {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.1, "r": None, "label": "Chart"}
+    source = [{"page_number": 1, "items": [{"type": "Chart", "md": "chart text", "value": "", "bbox": dict(seg),
+                                            "layout_segments": [dict(seg)]}]}]
+    assert transplant_layout(target, source) == 1
+    it = target[0]["items"][0]
+    assert it["value"] == "chart text" and it["layout_segments"][0]["label"] == "Picture"
+    assert target[0]["width"] == 1000

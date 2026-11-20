@@ -90,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--min-chars", type=int, default=4)
     p.add_argument("--override", help="RUN:PIPELINE whose complete pages replace the base pages")
     p.add_argument("--data-dir", type=Path, help="ParseBench 2 data directory (for steps that read the PDF)")
+    p.add_argument("--layout-from", help="RUN:PIPELINE whose layout items replace the base's (before snap)")
     p.add_argument("--split", choices=["screen", "dev", "test", "all"], default="dev",
                    help="write only the pages of this split (default dev: the test split stays sealed)")
     a = p.parse_args(argv)
@@ -105,6 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     base_run, base_name = a.base.rsplit(":", 1)
     donor_run, donor_name = a.donor.rsplit(":", 1)
     override_run, override_name = a.override.rsplit(":", 1) if a.override else (None, None)
+    layout_run, layout_name = a.layout_from.rsplit(":", 1) if a.layout_from else (None, None)
     pages = changed = 0
     applied: Counter = Counter()
     for base_file in sorted(Path(base_run).glob(f"*/{base_name}/*/*.result.json")):
@@ -123,6 +125,15 @@ def main(argv: list[str] | None = None) -> int:
                     base = o
                     applied["override"] += 1
         merged, n = merge_result(base, donor, a.name, steps, a.min_chars)
+        if layout_run:
+            from idp.merge_layout import transplant_layout
+
+            l_file = Path(layout_run) / subset / layout_name / subset / base_file.name
+            target = (merged.get("output") or {}).get("layout_pages")
+            if l_file.exists() and target:
+                source = (json.loads(l_file.read_text()).get("output") or {}).get("layout_pages") or []
+                if transplant_layout(target, source):
+                    n["layout"] += 1
         if "snap" in steps and a.data_dir is not None:
             from idp.merge_layout import pdf_words, snap_layout_pages
 

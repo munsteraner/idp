@@ -103,3 +103,36 @@ def snap_layout_pages(layout_pages: list[dict], words: list) -> int:
                 item["bbox"] = {**item["bbox"], **{k: new[k] for k in ("x", "y", "w", "h")}}
             changed += 1
     return changed
+
+
+# Labels the KDL adapter maps before scoring; the LightOnOCR adapter does not know them.
+_KDL_LABEL_FIX = {"Chart": "Picture", "Flowchart": "Picture"}
+
+
+def transplant_layout(target_pages: list[dict], source_pages: list[dict]) -> int:
+    """Replace the target's layout items with the source's, converted to the target's item format.
+
+    For combining one parser's text with another parser's layout: the target (LightOnOCR format) keeps
+    its page metadata (pixel size, header and footer fields); the items come from the source (KDL format,
+    normalized boxes with canonical labels and the text in ``md``). Text goes to ``value``, which the
+    LightOnOCR layout adapter reads. Returns the number of items written.
+    """
+    by_page = {p.get("page_number"): p for p in source_pages}
+    written = 0
+    for page in target_pages:
+        src = by_page.get(page.get("page_number"))
+        if not src or not src.get("items"):
+            continue
+        items = []
+        for it in src["items"]:
+            segs = []
+            for seg in it.get("layout_segments") or ([it["bbox"]] if isinstance(it.get("bbox"), dict) else []):
+                if isinstance(seg, dict):
+                    segs.append({**seg, "label": _KDL_LABEL_FIX.get(seg.get("label"), seg.get("label"))})
+            if not segs:
+                continue
+            text = it.get("md") or it.get("value") or ""
+            items.append({**it, "value": text, "bbox": segs[0], "layout_segments": segs})
+        page["items"] = items
+        written += len(items)
+    return written
