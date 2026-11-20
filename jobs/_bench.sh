@@ -15,7 +15,7 @@ SUBSETS=${SUBSETS:-}
 OUT=$P/runs/parse${TAG:+-$TAG}/$PIPELINE
 
 bench_data() {
-  (cd "$P/work" && "$ENVDIR/bin/parse-bench" download --dataset parsebench-2)
+  (cd "$P/work" && "$PY" -m idp.parse_cli download --dataset parsebench-2)
   DATA=$P/work/data_parsebench-2
   if [ "$SPLIT" != all ]; then
     local d=$P/work/data_parsebench-2-$SPLIT
@@ -29,7 +29,7 @@ bench_infer() {
   cd "$P/work"
   for s in ${SUBSETS:-$ALL_SUBSETS}; do
     echo "=== inference $PIPELINE $s (split $SPLIT) ==="
-    "$ENVDIR/bin/parse-bench" inference run "$PIPELINE" --input_dir "$DATA/$s" \
+    "$PY" -m idp.parse_cli inference run "$PIPELINE" --input_dir "$DATA/$s" \
       --output_dir "$OUT/parsebench-2/$s" --max_concurrent "$conc" --no_rich || failed+=("$s")
   done
   [ ${#failed[@]} -eq 0 ] || echo "INFERENCE FAILED for: ${failed[*]}"
@@ -37,7 +37,7 @@ bench_infer() {
 
 bench_score() {
   cd "$P/work"
-  "$ENVDIR/bin/parse-bench" run "$PIPELINE" --dataset parsebench-2 --input_dir "$DATA" \
+  "$PY" -m idp.parse_cli run "$PIPELINE" --dataset parsebench-2 --input_dir "$DATA" \
     --output_dir "$OUT" --skip_inference --open_report=False
   mkdir -p "$P/runs/scores"
   cp "$OUT/parsebench-2/_score/$PIPELINE/_next_score.json" "$P/runs/scores/$PIPELINE${TAG:+-$TAG}-$SPLIT-official.json"
