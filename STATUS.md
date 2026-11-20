@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-20, 00:35.
+Last updated: 2026-11-20, 02:15.
 
 ## Done
 
@@ -51,10 +51,13 @@ All runs are logged in `results/parsebench2.tsv` (ParseBench 2, all 4,317 pages,
 
 ## In progress
 
-- Noise floor, run-to-run part: second LightOnOCR-3 4B run on the dev split (`TAG=rep2`), two GPU jobs in parallel, inference only: 47836748 (gpuexpress-zen4: text, headings, strikeout, underline, tables, complex headers, financial, insurance, charts) and 47836751 (gpu4090: dense tables, layout, forms, fillable forms). When both are done:
-  1. `palma.py submit jobs/bench_score.sh SHA=<sha> PIPELINE=lightonocr3_4b_vllm SPLIT=dev TAG=rep2`
-  2. `palma.py submit jobs/score_split.sh SHA=<sha> PIPELINE=lightonocr3_4b_vllm SPLIT=dev RUN=runs/parse-rep2/lightonocr3_4b_vllm/parsebench-2 BASE_PIPELINE=lightonocr3_4b_vllm`. It writes `runs/scores/lightonocr3_4b_vllm-vs-lightonocr3_4b_vllm-dev.json`.
-  3. The paired difference of rep2 against rep1 on dev is the run-to-run noise floor. Write it into `DECISIONS.md` and PRD section 9a's keep rule.
+Nothing is running.
+
+## Best system so far
+
+`merge_decor` (LightOnOCR-3 4B with strikeout and underline transferred from `pymupdf4llm_markdown`, built from the parse cache): **79.61 on dev** against 78.77 for LightOnOCR alone, +0.84 [+0.69, +0.99]. Formatting 86.23 (+5.06). Not yet scored on the test split; that comes when a combination of several kept ideas is final. Build and score with `jobs/merge_decorations.sh`.
+
+Noise floor for changes that re-run a model (two LightOnOCR runs on dev): 0.42 overall, 1.85 tables, 1.17 forms (`DECISIONS.md`). Merges from the same cached base run need only the paired interval.
 
 ## Next
 
@@ -65,7 +68,11 @@ Priority changed on 2026-11-19: parsing first, schema extraction second (see `DE
 3. Done: splits in `splits/parsebench2.tsv`, split scorer `src/idp/score_split.py`, sampling noise measured. Still open: run-to-run noise (in progress, see above).
 4. Done: classical tools measured (table above). Optional: Docling on a GPU (`docling-serve` CUDA image v1.17.0, `sha256:3cc7fe3d…`) if it becomes a router candidate; on CPU, 13 dense tables hit the provider's 120 s timeout.
 5. Mostly done: the harness output directories are the parse cache. Missing: the other open VLM parsers. Screen them on `SPLIT=screen` first (compute policy in `DECISIONS.md`); candidates with a pipeline in the harness and a leaderboard row: KDL-Frontier-Parser-nano-v2 (80.07), Infinity-Parser2 Pro (78.41), Chandra 2 (77.45), MinerU2.5-Pro (76.77), PaddleOCR-VL 1.6 (71.42), dots.mocr (64.05, strong text and tables). Read each provider's docstring for its server settings and add a `case` entry to `jobs/bench_vllm.sh`.
-6. First combination experiment: route pages or regions to the parser that is best for that content type (upper bound from published scores: about 83.6 against 80.07). Build combined outputs in the harness results layout from the cached `result.json` files and score them with `parse-bench evaluation run` (official scorer, unchanged). The per-page oracle is done (84.78 against 78.77 on dev). Next: a router from features available at parse time (text layer present, vector drawings, page and block type, agreement between parsers), fitted on dev and scored on dev with `score_split --baseline` against LightOnOCR alone. Start with the strongest single signal: decorations and tables from the text layer on digital pages.
+6. Combinations on the parse cache, in progress. Per-page oracle over 8 parsers: 84.78 on dev (`DECISIONS.md`). Page features for a router: `runs/features/parsebench2-pages.tsv` (`idp.page_features`; 99.6% of pages have a text layer, so that alone does not separate cases). Hypotheses with evidence in `IDEAS.md`:
+   - Idea 1, decoration transfer: kept (+0.84). Next: fuzzy span matching.
+   - Idea 2, per-table choice between LightOnOCR and the text-layer tables (dense tables: 63.0 against 61.6, oracle 79.0). Next to try.
+   - Idea 3, snap layout boxes to text-layer words.
+   How to add a merge: write the merged `result.json` files as a new pipeline in the harness layout, add its name to `MERGES` in `src/idp/parse_pipelines.py` (provider of its layout boxes), score with `bench_score.sh SPLIT=dev`, compare with `score_split.sh BASE_PIPELINE=lightonocr3_4b_vllm`.
 7. Build the orchestrator: instruction file, `IDEAS.md` backlog, results log, a shell loop that starts a fresh headless Claude Code per iteration, and a permission allowlist (PRD section 9a).
 8. Step two, later: schema extraction on top of the best parse, checked on ExtractBench. Known targets from the first run: output cut at 32,768 tokens on real_pueblo, empty answer on real_sm0801.
 
