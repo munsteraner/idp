@@ -180,3 +180,11 @@ Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and unde
 **Result** on dev: `merge_sparse` against LightOnOCR +0.14 [+0.04, +0.31], tables +0.83 [+0.24, +1.88], forms −0.01. `merge_v4` (decor, trunc, sparse) **80.07**, +0.14 [+0.04, +0.31] over `merge_v2`, +1.30 over LightOnOCR. Kept.
 
 **Caveat.** The three thresholds were chosen by looking at dev pages, so this step's gain is the most exposed to overfitting. It must hold on the sealed test split before it counts.
+
+## 2026-11-20: Kept: snap text boxes to the PDF's word boxes (merge_snap, merge_v5)
+
+**Change.** Merge step `snap` (`idp.merge_layout`): for each single-segment text-like layout item of the base output (text, title, section header, list item, caption, footnote, page header and footer, formula, code), the PDF words whose centres lie inside the box (each word assigned to the nearest containing box, margin 0.3% of the page) replace the box by their union, if they hold at least 60% of the item's tokens. Tables, pictures, rotated pages and pages without a text layer are left alone. The layout scorer reads `layout_segments`, which the step updates together with `bbox`. A first version with a 1% margin pulled neighbouring lines into title boxes; fixed before scoring.
+
+**Result** on dev: `merge_snap` against LightOnOCR +0.18 [+0.08, +0.28], layout **+1.09 [+0.47, +1.67]**, all other dimensions identical. `merge_v5` (decor, trunc, sparse, snap) **80.25**, +0.18 over `merge_v4`, +1.48 over LightOnOCR. Kept.
+
+**Open.** The layout oracle over the parse cache is 91.3; the remaining gap is probably missing or wrongly classed elements, not box tightness.

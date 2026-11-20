@@ -55,21 +55,22 @@ Nothing is running.
 
 ## Best system so far
 
-`merge_v4` (LightOnOCR-3 4B plus three merge steps from `pymupdf4llm_markdown`, built from the parse cache): **80.07 on dev** against 78.77 for LightOnOCR alone. Steps, each kept by a paired interval excluding zero:
+`merge_v5` (LightOnOCR-3 4B plus four merge steps using `pymupdf4llm_markdown` and the PDF text layer, built from the parse cache): **80.25 on dev** against 78.77 for LightOnOCR alone. Steps, each kept by a paired interval excluding zero:
 
 | Step | What it does | Gain on dev |
 | --- | --- | --- |
 | `decor` | strikeout and underline from the text layer | +0.84 overall, formatting +5.06 |
 | `trunc` | tables LightOnOCR left unfinished at its output budget replaced by the text-layer table | +0.32, tables +2.09, forms −0.18 |
 | `sparse` | a page's tables swapped when LightOnOCR's hold far fewer cells (thresholds chosen on dev) | +0.14, tables +0.83 |
+| `snap` | text boxes snapped to the PDF's word boxes | +0.18, layout +1.09 |
 
-Rejected: `corner` (+0.03, interval includes zero). Not yet scored on the test split. Build and score: `jobs/merge.sh NAME=merge_v4 STEPS=decor-trunc-sparse`.
+Rejected: `corner` (+0.03, interval includes zero). Not yet scored on the test split. Build and score: `jobs/merge.sh NAME=merge_v5 STEPS=decor-trunc-sparse-snap`.
 
 Noise floor for changes that re-run a model (two LightOnOCR runs on dev): 0.42 overall, 1.85 tables, 1.17 forms (`DECISIONS.md`). Merges from the same cached base run need only the paired interval.
 
 ## In progress
 
-- IDEAS.md idea 5: LightOnOCR re-run with a 28,672-token output budget on the 103 dev pages it cut off (`lightonocr3_4b_vllm_long`, job 47839896, case list `runs/cases/trunc-dev.txt`). On long tables it does finish, LightOnOCR beats the text-layer table by about 10 points. When done: `jobs/merge.sh NAME=merge_v4_long STEPS=decor-trunc-sparse OVERRIDE=lightonocr3_4b_vllm_long` (add `merge_v4_long` to `MERGES` first), then `score_split.sh PIPELINE=merge_v4_long BASE_PIPELINE=merge_v4`. It re-runs a model on those pages, so check the gain against the noise floor too.
+- IDEAS.md idea 5: LightOnOCR re-run with a 28,672-token output budget on the 103 dev pages it cut off (`lightonocr3_4b_vllm_long`, case list `runs/cases/trunc-dev.txt`). On long tables it does finish, LightOnOCR beats the text-layer table by about 10 points. Now on `gpuexpress-zen4` as job 47839918 (gpu4090 had 133 pending jobs). When done: add `merge_v5_long` to `MERGES`, `jobs/merge.sh NAME=merge_v5_long STEPS=decor-trunc-sparse-snap OVERRIDE=lightonocr3_4b_vllm_long`, then `score_split.sh PIPELINE=merge_v5_long BASE_PIPELINE=merge_v5`. It re-runs a model on those pages, so check the gain against the noise floor too.
 
 ## Next
 

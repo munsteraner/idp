@@ -23,7 +23,7 @@ Numbers below: mean per-page score on dev (×100) from `runs/scores/page-scores-
 - **Hypothesis.** For grounding, word boxes from the text layer are exact; the VLM's boxes are approximate. Snapping VLM block boxes to the union of the text-layer words they contain improves layout without changing the text.
 - **Evidence.** Layout: LightOnOCR 84.2, oracle 91.3; classical parsers win 179 of 321 pages (`pymupdf4llm` 86, Docling 51, Unstructured 42).
 - **Test.** Box refinement on cached outputs, scored on dev.
-- **Status.** Open.
+- **Status.** Kept (2026-11-20): `snap`, layout +1.09 [+0.47, +1.67], overall +0.18. The oracle (91.3) leaves room; next look at missing and wrongly classed elements.
 
 ## 5. More output budget for LightOnOCR on pages it truncates
 

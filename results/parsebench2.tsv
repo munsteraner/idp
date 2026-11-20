@@ -15,3 +15,5 @@ date	commit	job	pipeline	kind	split	overall	text	formatting	tables	charts	layout
 2026-11-20	b02e719f93	47839772	merge_v3	merge: decor + trunc + corner, CPU	dev 2583 pages	79.95	84.50	86.23	79.03	65.26	84.16	80.54	3 min	corner adds +0.03 [-0.01, +0.06] on top of merge_v2: rejected
 2026-11-20	5519163aa3	47839901	merge_sparse	merge: page tables swapped when LightOnOCR holds far fewer cells, CPU	dev 2583 pages	78.91	84.52	81.17	77.62	65.26	84.16	80.71	3 min	kept: +0.14 [+0.04, +0.31]; thresholds chosen on dev
 2026-11-20	5519163aa3	47839902	merge_v4	merge: decor + trunc + sparse, CPU	dev 2583 pages	80.07	84.50	86.23	79.71	65.26	84.16	80.53	3 min	best so far: +0.14 [+0.04, +0.31] over merge_v2; +1.30 over LightOnOCR
+2026-11-20	a96a0ba484	47839934	merge_snap	merge: text boxes snapped to PDF word boxes, CPU	dev 2583 pages	78.95	84.52	81.17	76.79	65.26	85.25	80.72	3 min	kept: +0.18 [+0.08, +0.28]; layout +1.09 [+0.47, +1.67]
+2026-11-20	a96a0ba484	47839935	merge_v5	merge: decor + trunc + sparse + snap, CPU	dev 2583 pages	80.25	84.50	86.23	79.71	65.26	85.25	80.53	3 min	best so far: +0.18 [+0.08, +0.28] over merge_v4; +1.48 over LightOnOCR
