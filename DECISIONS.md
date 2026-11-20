@@ -170,3 +170,13 @@ Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and unde
 - `trunc` kept. Dense tables rise from 63.0 to 69.9. The small forms loss comes from 4 forms pages whose unclosed "table" held most of the form; a token-coverage guard did not separate them from the gains, and a guard fitted to 4 pages would fit noise, so the step stays as it is.
 - `corner` (prepend an empty header cell when the header row is exactly one cell narrower than the body, no rowspans) rejected: the interval includes zero. LightOnOCR drops the stub cell on 22 dev table pages (average 41.7 there), but the repair recovers little, so the shifted headers are not the main loss on those pages.
 - Best system: `merge_v2`. Not yet scored on the test split.
+
+## 2026-11-20: Kept: swap a page's tables when LightOnOCR's hold far fewer cells (merge_sparse, merge_v4)
+
+**Finding.** On dev table pages where both outputs have complete tables, LightOnOCR's tables sometimes hold much less than the text layer's: where LightOnOCR has under 60% of the text-layer tables' filled cells (23 pages), it averages 25.0 against 58.9. A per-table "superset" rule fired on 159 pages, many where LightOnOCR is better (text-layer tables often merge neighbouring tables), so it was dropped before scoring. The page-level rule also fired on 21 forms pages, where the text-layer "tables" are form grids and LightOnOCR is better.
+
+**Change.** Merge step `sparse` (`idp.merge_tables.replace_sparse_page_tables`): swap all of a page's tables for the donor's when all base tables are complete, the base tables have under 60% of the donor tables' filled cells, the donor tables contain at least 90% of the base tables' numbers, and at least half of the donor's cells hold a digit (data tables, not form grids). 16 dev pages change.
+
+**Result** on dev: `merge_sparse` against LightOnOCR +0.14 [+0.04, +0.31], tables +0.83 [+0.24, +1.88], forms −0.01. `merge_v4` (decor, trunc, sparse) **80.07**, +0.14 [+0.04, +0.31] over `merge_v2`, +1.30 over LightOnOCR. Kept.
+
+**Caveat.** The three thresholds were chosen by looking at dev pages, so this step's gain is the most exposed to overfitting. It must hold on the sealed test split before it counts.
