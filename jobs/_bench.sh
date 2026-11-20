@@ -1,5 +1,6 @@
 # Shared benchmark steps, sourced by the bench job scripts after _env.sh.
-# Inputs (environment): PIPELINE; optional SPLIT (screen|dev|test|all, default all),
+# Inputs (environment): PIPELINE; optional SPLIT (screen|dev|test|all, default all), CASES (a file of
+# case ids relative to the project directory; overrides SPLIT and names the data dir after the file),
 # SUBSETS (space-separated subset names, default all 13), TAG (output suffix), CONC.
 #
 # bench_data       sets DATA: the ParseBench 2 directory, or a symlinked copy holding one split
@@ -17,7 +18,12 @@ OUT=$P/runs/parse${TAG:+-$TAG}/$PIPELINE
 bench_data() {
   (cd "$P/work" && "$PY" -m idp.parse_cli download --dataset parsebench-2)
   DATA=$P/work/data_parsebench-2
-  if [ "$SPLIT" != all ]; then
+  if [ -n "${CASES:-}" ]; then
+    local name; name=$(basename "$CASES" .txt)
+    SPLIT=cases-$name
+    flock "$P/work/split-dirs.lock" "$PY" -m idp.split_dirs "$DATA" "$CODE/splits/parsebench2.tsv" "cases:$P/$CASES" "$P/work/data_parsebench-2-$SPLIT"
+    DATA=$P/work/data_parsebench-2-$SPLIT
+  elif [ "$SPLIT" != all ]; then
     local d=$P/work/data_parsebench-2-$SPLIT
     flock "$P/work/split-dirs.lock" "$PY" -m idp.split_dirs "$DATA" "$CODE/splits/parsebench2.tsv" "$SPLIT" "$d"
     DATA=$d

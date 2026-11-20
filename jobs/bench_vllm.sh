@@ -24,6 +24,12 @@ case "$PIPELINE" in
     SERVED=lightonocr-3-4b URL_ENV=LIGHTONOCR_3_4B_SERVER_URL
     FLAGS=(--gpu-memory-utilization 0.85 --limit-mm-per-prompt '{"image": 1}' --max-model-len 24576)
     ;;
+  lightonocr3_4b_vllm_long)
+    # Same model; room for the 28,672-token output budget of idp.parse_pipelines' variant.
+    MODEL=lightonai/LightOnOCR-3-4B REV=b71010f095dc3735de7ee6b9969bff8f8f50b39a
+    SERVED=lightonocr-3-4b URL_ENV=LIGHTONOCR_3_4B_SERVER_URL
+    FLAGS=(--gpu-memory-utilization 0.85 --limit-mm-per-prompt '{"image": 1}' --max-model-len 36864)
+    ;;
   *) echo "no vLLM settings for $PIPELINE" >&2; exit 2 ;;
 esac
 SIF=$P/images/vllm-v0.34.0.sif

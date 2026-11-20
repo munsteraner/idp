@@ -6,7 +6,8 @@ unchanged harness runs and scores exactly those pages. Results land in the usual
 so a later full run into the same output directory skips the pages already done.
 
 Usage: python -m idp.split_dirs DATA_DIR SPLITS_TSV SPLIT OUT_DIR
-SPLIT is ``screen``, ``dev`` (screen and dev labels), ``test`` or ``all``. Rebuilding is
+SPLIT is ``screen``, ``dev`` (screen and dev labels), ``test`` or ``all``, or ``cases:FILE`` for the
+case ids listed in FILE (one ``subset/name`` per line). Rebuilding is
 idempotent: the tree is built next to OUT_DIR and swapped in.
 """
 
@@ -26,9 +27,13 @@ def case_name(file_name: str) -> str:
     return file_name.rsplit(".", 1)[0]
 
 
-def build(data_dir: Path, splits_tsv: Path, split: str, out_dir: Path) -> dict[str, int]:
-    labels = SPLIT_LABELS[split]
-    keep = {case for case, (_, label) in load_splits(splits_tsv).items() if label in labels}
+def build(data_dir: Path, splits_tsv: Path, split: str, out_dir: Path, cases: set[str] | None = None) -> dict[str, int]:
+    """With ``cases``, the tree holds exactly those case ids (``split`` is then ignored)."""
+    if cases is not None:
+        keep = set(cases)
+    else:
+        labels = SPLIT_LABELS[split]
+        keep = {case for case, (_, label) in load_splits(splits_tsv).items() if label in labels}
     tmp = out_dir.with_name(out_dir.name + ".tmp")
     shutil.rmtree(tmp, ignore_errors=True)
     counts: dict[str, int] = {}
@@ -36,14 +41,14 @@ def build(data_dir: Path, splits_tsv: Path, split: str, out_dir: Path) -> dict[s
         src = data_dir / subset
         dst = tmp / subset
         dst.mkdir(parents=True)
-        cases = set()
+        found = set()
         for f in src.iterdir():
             name = case_name(f.name)
             if f.is_file() and f"{subset}/{name}" in keep:
                 os.symlink(f.resolve(), dst / f.name)
                 if f.name.endswith(".test.json"):
-                    cases.add(name)
-        counts[subset] = len(cases)
+                    found.add(name)
+        counts[subset] = len(found)
     expected = sum(1 for case in keep if case.split("/", 1)[0] in SUBSETS)
     if sum(counts.values()) != expected:
         raise RuntimeError(f"found {sum(counts.values())} cases with a test.json, expected {expected}")
@@ -61,7 +66,10 @@ def main(argv: list[str] | None = None) -> int:
     if len(argv) != 4:
         print("usage: python -m idp.split_dirs DATA_DIR SPLITS_TSV SPLIT OUT_DIR", file=sys.stderr)
         return 2
-    counts = build(Path(argv[0]), Path(argv[1]), argv[2], Path(argv[3]))
+    cases = None
+    if argv[2].startswith("cases:"):
+        cases = {line.strip() for line in Path(argv[2][len("cases:"):]).read_text().splitlines() if line.strip()}
+    counts = build(Path(argv[0]), Path(argv[1]), argv[2], Path(argv[3]), cases)
     print(f"{argv[3]}: {sum(counts.values())} cases ({', '.join(f'{k} {v}' for k, v in counts.items())})")
     return 0
 
