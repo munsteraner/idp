@@ -1,8 +1,10 @@
 """Features of each ParseBench 2 page that a router can see at parse time (no labels, no subset name).
 
 Per case: whether it is a PDF, its text-layer size, how much of the page images cover (scans), vector
-drawing counts (rules, boxes, strike lines), text-decoration annotations, and the number of tables
-PyMuPDF's detector finds. Written as one TSV row per case, keyed by the case id used everywhere else.
+drawing counts (rules, boxes, strike lines) and text-decoration annotations. Written as one TSV row per
+case, keyed by the case id used everywhere else. PyMuPDF's table detector is left out: on some dense
+pages it ran for minutes (job 47836851 timed out). Each page gets at most PAGE_SECONDS; rows are written
+as they finish.
 
 Usage: python -m idp.page_features DATA_DIR OUT.tsv [--workers 8]
 """
@@ -18,8 +20,9 @@ from pathlib import Path
 FIELDS = [
     "id", "is_pdf", "pages", "width", "height", "chars", "words", "blocks", "fonts",
     "image_cover", "drawings", "h_lines", "rects", "annots_strike", "annots_underline",
-    "annots_other", "tables", "rotation", "error",
+    "annots_other", "rotation", "error",
 ]
+PAGE_SECONDS = 20
 
 
 def _features(path: Path) -> dict:
@@ -63,18 +66,32 @@ def _features(path: Path) -> dict:
                 row["annots_underline"] += 1
             else:
                 row["annots_other"] += 1
-        try:
-            row["tables"] = len(page.find_tables().tables)
-        except Exception as e:  # the detector fails on some malformed pages
-            row["error"] = f"find_tables: {e}"[:200]
     except Exception as e:
         row["error"] = str(e)[:200]
     return row
 
 
+class _PageTimeout(Exception):
+    pass
+
+
+def _alarm(signum, frame):
+    raise _PageTimeout()
+
+
 def _case(args: tuple[str, str]) -> dict:
+    import signal
+
     case_id, path = args
-    row = _features(Path(path))
+    signal.signal(signal.SIGALRM, _alarm)
+    signal.alarm(PAGE_SECONDS)
+    try:
+        row = _features(Path(path))
+    except _PageTimeout:
+        row = {f: 0 for f in FIELDS}
+        row["error"] = f"timeout after {PAGE_SECONDS} s"
+    finally:
+        signal.alarm(0)
     row["id"] = case_id
     return row
 
@@ -97,14 +114,18 @@ def main(argv: list[str] | None = None) -> int:
             name = case_name(test.name)
             if name in files:
                 jobs.append((f"{subset_dir.name}/{name}", str(files[name])))
-    with ProcessPoolExecutor(a.workers) as ex:
-        rows = list(ex.map(_case, jobs, chunksize=16))
-    with a.out.open("w", newline="") as f:
+    rows = errors = 0
+    with ProcessPoolExecutor(a.workers) as ex, a.out.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=FIELDS, delimiter="\t")
         w.writeheader()
-        w.writerows(rows)
-    errors = sum(1 for r in rows if r["error"])
-    print(f"{a.out}: {len(rows)} cases, {errors} with errors")
+        for row in ex.map(_case, jobs, chunksize=4):
+            w.writerow(row)
+            f.flush()
+            rows += 1
+            errors += bool(row["error"])
+            if rows % 500 == 0:
+                print(f"{rows}/{len(jobs)} pages", flush=True)
+    print(f"{a.out}: {rows} cases, {errors} with errors")
     return 0
 
 
