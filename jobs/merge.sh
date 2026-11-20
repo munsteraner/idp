@@ -16,6 +16,7 @@ PIPELINE=$NAME SPLIT=dev
 source "$CODE/jobs/_bench.sh"
 "$PY" -m idp.merge "$P/runs/parse/$BASE/parsebench-2:$BASE" "$P/runs/parse/$DONOR/parsebench-2:$DONOR" \
   "$OUT/parsebench-2" "$PIPELINE" --steps "${STEPS//-/,}" --min-chars "${MIN_CHARS:-4}" --split dev \
+  --data-dir "$P/work/data_parsebench-2" \
   ${OVERRIDE:+--override "$P/runs/parse/$OVERRIDE/parsebench-2:$OVERRIDE"}
 bench_data
 bench_score

@@ -23,6 +23,8 @@ MERGES: dict[str, str] = {
     "merge_sparse": "lightonocr3",
     "merge_v4": "lightonocr3",
     "merge_v4_long": "lightonocr3",
+    "merge_snap": "lightonocr3",
+    "merge_v5": "lightonocr3",
 }
 
 

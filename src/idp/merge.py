@@ -5,6 +5,7 @@ Steps (each uses only the two parse outputs, no labels):
   trunc  a table the base left unfinished replaced by the donor's matching table (``idp.merge_tables``)
   corner an empty stub cell added where a header row is one cell short of the body (no donor needed)
   sparse all of a page's tables swapped for the donor's when the base tables hold far fewer cells
+  snap   text boxes snapped to the PDF's word boxes (``idp.merge_layout``; needs --data-dir)
 
 The merged outputs are written as a new pipeline in the harness results layout (base layout boxes kept),
 so the official scorer scores them like any other run. Register the pipeline name in
@@ -29,7 +30,7 @@ from pathlib import Path
 from idp.merge_decorations import donor_spans, merge as apply_decor
 from idp.merge_tables import fix_corner_cells, fix_truncated_table, replace_sparse_page_tables, unfinished_table_start
 
-STEPS = ("decor", "trunc", "corner", "sparse")
+STEPS = ("decor", "trunc", "corner", "sparse", "snap")
 
 
 def merge_markdown(base: str, donor: str, steps: list[str], min_chars: int = 4) -> tuple[str, Counter]:
@@ -84,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--steps", required=True, help=f"comma-separated, from {', '.join(STEPS)}")
     p.add_argument("--min-chars", type=int, default=4)
     p.add_argument("--override", help="RUN:PIPELINE whose complete pages replace the base pages")
+    p.add_argument("--data-dir", type=Path, help="ParseBench 2 data directory (for steps that read the PDF)")
     p.add_argument("--split", choices=["screen", "dev", "test", "all"], default="dev",
                    help="write only the pages of this split (default dev: the test split stays sealed)")
     a = p.parse_args(argv)
@@ -117,6 +119,14 @@ def main(argv: list[str] | None = None) -> int:
                     base = o
                     applied["override"] += 1
         merged, n = merge_result(base, donor, a.name, steps, a.min_chars)
+        if "snap" in steps and a.data_dir is not None:
+            from idp.merge_layout import pdf_words, snap_layout_pages
+
+            pdf = a.data_dir / subset / f"{base_file.name[: -len('.result.json')]}.pdf"
+            words = pdf_words(pdf) if pdf.exists() else None
+            layout = (merged.get("output") or {}).get("layout_pages")
+            if words and layout:
+                n["snap"] += snap_layout_pages(layout, words)
         out_file = a.out_run / subset / a.name / subset / base_file.name
         out_file.parent.mkdir(parents=True, exist_ok=True)
         out_file.write_text(json.dumps(merged))
