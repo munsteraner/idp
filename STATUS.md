@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-20, 02:15.
+Last updated: 2026-11-20, 13:20.
 
 ## Done
 
@@ -55,9 +55,13 @@ Nothing is running.
 
 ## Best system so far
 
-`merge_decor` (LightOnOCR-3 4B with strikeout and underline transferred from `pymupdf4llm_markdown`, built from the parse cache): **79.61 on dev** against 78.77 for LightOnOCR alone, +0.84 [+0.69, +0.99]. Formatting 86.23 (+5.06). Not yet scored on the test split; that comes when a combination of several kept ideas is final. Build and score with `jobs/merge_decorations.sh`.
+`merge_v2` (LightOnOCR-3 4B plus two merge steps from `pymupdf4llm_markdown`, built from the parse cache): **79.93 on dev** against 78.77 for LightOnOCR alone, **+1.16 [+0.96, +1.40]**. Steps: `decor` (strikeout and underline from the text layer, formatting +5.06) and `trunc` (tables LightOnOCR left unfinished at its output budget replaced by the text-layer table, tables +2.09). Not yet scored on the test split. Build and score: `jobs/merge.sh NAME=merge_v2 STEPS=decor-trunc`. Rejected: `corner` (+0.03, interval includes zero).
 
 Noise floor for changes that re-run a model (two LightOnOCR runs on dev): 0.42 overall, 1.85 tables, 1.17 forms (`DECISIONS.md`). Merges from the same cached base run need only the paired interval.
+
+## In progress
+
+- IDEAS.md idea 5: LightOnOCR re-run with a 28,672-token output budget on the 103 dev pages it cut off (`lightonocr3_4b_vllm_long`, job 47839896, case list `runs/cases/trunc-dev.txt`). On long tables it does finish, LightOnOCR beats the text-layer table by about 10 points. When done: `jobs/merge.sh NAME=merge_v2_long STEPS=decor-trunc OVERRIDE=lightonocr3_4b_vllm_long`, then `score_split.sh PIPELINE=merge_v2_long BASE_PIPELINE=merge_v2`. It re-runs a model on those pages, so check the gain against the noise floor too.
 
 ## Next
 
@@ -70,7 +74,7 @@ Priority changed on 2026-11-19: parsing first, schema extraction second (see `DE
 5. Mostly done: the harness output directories are the parse cache. Missing: the other open VLM parsers. Screen them on `SPLIT=screen` first (compute policy in `DECISIONS.md`); candidates with a pipeline in the harness and a leaderboard row: KDL-Frontier-Parser-nano-v2 (80.07), Infinity-Parser2 Pro (78.41), Chandra 2 (77.45), MinerU2.5-Pro (76.77), PaddleOCR-VL 1.6 (71.42), dots.mocr (64.05, strong text and tables). Read each provider's docstring for its server settings and add a `case` entry to `jobs/bench_vllm.sh`.
 6. Combinations on the parse cache, in progress. Per-page oracle over 8 parsers: 84.78 on dev (`DECISIONS.md`). Page features for a router: `runs/features/parsebench2-pages.tsv` (`idp.page_features`; 99.6% of pages have a text layer, so that alone does not separate cases). Hypotheses with evidence in `IDEAS.md`:
    - Idea 1, decoration transfer: kept (+0.84). Next: fuzzy span matching.
-   - Idea 2, per-table choice between LightOnOCR and the text-layer tables (dense tables: 63.0 against 61.6, oracle 79.0). Next to try.
+   - Idea 2: truncation part kept (`trunc`); choosing between two complete tables still open (736 dev pages where both hold the same numbers: LightOnOCR 83.0, better of the two 91.5).
    - Idea 3, snap layout boxes to text-layer words.
    How to add a merge: write the merged `result.json` files as a new pipeline in the harness layout, add its name to `MERGES` in `src/idp/parse_pipelines.py` (provider of its layout boxes), score with `bench_score.sh SPLIT=dev`, compare with `score_split.sh BASE_PIPELINE=lightonocr3_4b_vllm`.
 7. Build the orchestrator: instruction file, `IDEAS.md` backlog, results log, a shell loop that starts a fresh headless Claude Code per iteration, and a permission allowlist (PRD section 9a).
