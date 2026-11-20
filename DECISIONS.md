@@ -188,3 +188,11 @@ Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and unde
 **Result** on dev: `merge_snap` against LightOnOCR +0.18 [+0.08, +0.28], layout **+1.09 [+0.47, +1.67]**, all other dimensions identical. `merge_v5` (decor, trunc, sparse, snap) **80.25**, +0.18 over `merge_v4`, +1.48 over LightOnOCR. Kept.
 
 **Open.** The layout oracle over the parse cache is 91.3; the remaining gap is probably missing or wrongly classed elements, not box tightness.
+
+## 2026-11-20: Kept: approximate placement in the decoration transfer (decorf, merge_v6)
+
+**Finding.** Of the struck spans `pymupdf4llm` marks on dev strikeout pages, 164 occur exactly in LightOnOCR's text, 39 are close variants (the parsers transcribed them differently, e.g. "Planning Directorr" against "Planning Director r"), 39 are shorter than 4 characters and 45 are not found (some are fragments with nested `<u>` markup).
+
+**Change.** Step `decorf`: like `decor`, but nested decoration markup inside a span is stripped, and a span of 8 or more characters without an exact occurrence goes to its best approximate occurrence (`rapidfuzz` partial alignment, similarity ≥ 90, set in advance, not tuned; aligned length within 0.8 to 1.25 times the span). 1,271 spans placed on dev against 1,116.
+
+**Result** on dev: `merge_v6` (decorf, trunc, sparse, snap) **80.43**, +0.19 [+0.12, +0.26] over `merge_v5`; formatting +1.12 [+0.71, +1.57] (strikeout 52.5 → 65.7, underline 60.6 → 64.5); nothing else changes. Kept; `decorf` replaces `decor`.
