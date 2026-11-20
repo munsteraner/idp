@@ -204,3 +204,13 @@ Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and unde
 **Why it looked promising.** On long dense tables that LightOnOCR does finish within the default budget, it beats the text-layer table by about 10 points (71.0 against 60.3). 82 of 90 truncations were long tables, not repetition loops.
 
 **Result** on dev, against `merge_v6`: 80.40 against 80.43, −0.04 [−0.10, +0.01]; tables −0.25 [−0.63, +0.05]. Rejected. On the pages long enough to hit the budget, LightOnOCR's completed tables are no better than the text-layer table `trunc` already puts in.
+
+## 2026-11-20: Second VLM in the pool: KDL-Frontier-Parser-nano-v2; kept: chart router (route_charts)
+
+**KDL-Frontier-Parser-nano-v2** (1.2B Qwen2-VL, two-stage layout plus per-region recognition through the harness's `kdl_frontier_nano_v2` pipeline; weights at the published revision `766505d5`, AGPL-3.0). AGPL is fine for research on public data but would require offering source if the system is run as a network service; decide before any deployment. Screening split (869 pages, job 47839982): 82.05 against 79.88 for LightOnOCR, much better on charts (+10.6), tables (+5.0), layout (+4.9) and formatting (+4.2), worse on text (−5.0) and forms (−6.7). Dev (2,583 pages): 80.54. About 25 min per 870 pages on one RTX 4090.
+
+**Routing.** The per-page oracle over `merge_v6` and KDL reaches 87.49 on screen and, with LightOnOCR added, 86.92 on dev. `idp.route` copies each page's whole result from one system. Pages keep their source `pipeline_name`, so the layout scorer resolves each page's own adapter; a control router that takes every page from `merge_v6` reproduces its official score exactly (80.43, layout 85.25). An unregistered name does not work: the scorer's fallback matcher then picks a LlamaParse adapter for LightOnOCR pages.
+
+**Kept: `route_charts`.** A page goes to KDL when LightOnOCR's own output labels a block `chart`, otherwise to `merge_v6`. Dev: **81.99**, +1.56 [+0.76, +2.35] over `merge_v6`; charts **+8.99 [+4.31, +13.72]**, above the run-to-run noise floor (0.89); other dimensions unchanged within noise.
+
+**Rejected: further block-count rules.** Single-feature rules (route to KDL when a block-label count reaches a threshold) were searched on the dev pages outside the screening set and checked on the screening pages. The best gained up to +0.45 on the search pages and −0.05 to +0.06 on the held-back pages: no generalisation, so none is used.
