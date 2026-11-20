@@ -214,3 +214,11 @@ Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and unde
 **Kept: `route_charts`.** A page goes to KDL when LightOnOCR's own output labels a block `chart`, otherwise to `merge_v6`. Dev: **81.99**, +1.56 [+0.76, +2.35] over `merge_v6`; charts **+8.99 [+4.31, +13.72]**, above the run-to-run noise floor (0.89); other dimensions unchanged within noise.
 
 **Rejected: further block-count rules.** Single-feature rules (route to KDL when a block-label count reaches a threshold) were searched on the dev pages outside the screening set and checked on the screening pages. The best gained up to +0.45 on the search pages and −0.05 to +0.06 on the held-back pages: no generalisation, so none is used.
+
+## 2026-11-20: Kept: LightOnOCR's text with KDL's layout (merge_v7_nosnap, route_charts_v7)
+
+**Idea.** The layout dimension is scored only from `output.layout_pages` (boxes and their text); text, tables and forms are scored from the markdown. A system may combine the text of one parser with the layout of another, both produced at parse time, like a pipeline with a separate layout model. KDL's layout is much better (89.2 on dev against 85.3 for `merge_v6`), its text worse.
+
+**Change.** `idp.merge --layout-from RUN:PIPELINE` (`idp.merge_layout.transplant_layout`): the merged result keeps LightOnOCR's markdown and page metadata, and its layout items are replaced by KDL's, converted to the format LightOnOCR's adapter reads (text into `value`; Chart and Flowchart mapped to Picture, as the KDL adapter does).
+
+**Result** on dev: `merge_v7_nosnap` (decorf, trunc, sparse, KDL layout) **81.07**, +0.63 [+0.28, +0.97] over `merge_v6`, layout **+3.80 [+1.66, +5.79]** (above the layout noise floor of 0.78), all other dimensions identical. Snapping KDL's boxes to PDF words hurts (layout 87.71 against 89.06): KDL's boxes are already tight, so `snap` is not applied to them. With the chart router: `route_charts_v7` **82.58**, +0.59 [+0.26, +0.91] over `route_charts`, +3.81 over LightOnOCR alone.
