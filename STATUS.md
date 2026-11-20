@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-20, 16:20.
+Last updated: 2026-11-20, 17:00.
 
 ## Done
 
@@ -12,26 +12,26 @@ Last updated: 2026-11-20, 16:20.
 
 ## Best system so far
 
-`route_charts`: **81.99 on dev** against 78.77 for LightOnOCR-3 4B alone (+3.22). Built from the parse cache plus one extra model run:
+`route_charts_v7`: **82.58 on dev** against 78.77 for LightOnOCR-3 4B alone (+3.81). Built from the parse cache (LightOnOCR-3 4B, KDL-Frontier-Parser-nano-v2, pymupdf4llm and the PDF text layer):
 
-1. `merge_v6` = LightOnOCR-3 4B + four merge steps from `pymupdf4llm_markdown` and the PDF text layer (80.43 on dev):
+1. `merge_v7_nosnap` (81.07 on dev): LightOnOCR's markdown with three merge steps, and KDL's layout items:
 
    | Step | What it does | Gain on dev |
    | --- | --- | --- |
    | `decorf` | strikeout and underline from the text layer, exact and approximate placement | +1.03 overall, formatting +6.2 |
    | `trunc` | tables LightOnOCR left unfinished at its output budget replaced by the text-layer table | +0.32, tables +2.09 |
    | `sparse` | a page's tables swapped when LightOnOCR's hold far fewer cells (thresholds chosen on dev) | +0.14, tables +0.83 |
-   | `snap` | text boxes snapped to the PDF's word boxes | +0.18, layout +1.09 |
+   | KDL layout | layout items from KDL instead of LightOnOCR (`--layout-from`) | +0.63, layout +3.80 |
 
-2. Router (`idp.route`): pages where LightOnOCR sees a chart go to KDL-Frontier-Parser-nano-v2 (AGPL-3.0 weights), all others to `merge_v6`: +1.56 [+0.76, +2.35], charts +8.99.
+2. Router (`idp.route`): pages where LightOnOCR sees a chart go to KDL (AGPL-3.0 weights) whole: +1.56 [+0.76, +2.35], charts +8.99 (measured on top of `merge_v6`), +0.59 on top of the KDL layout.
 
-Build on dev: `jobs/merge.sh NAME=merge_v6 STEPS=decorf-trunc-sparse-snap`, then `jobs/route.sh NAME=route_charts RULE=charts`. Rejected so far: `corner` repair, larger output budget for truncated pages, block-count routing rules beyond charts (`DECISIONS.md`).
+Build on dev: `jobs/merge.sh NAME=merge_v7_nosnap STEPS=decorf-trunc-sparse LAYOUT_FROM=kdl_frontier_nano_v2`, then `jobs/route.sh NAME=route_charts_v7 RULE=charts FIRST=merge_v7_nosnap`. `snap` (LightOnOCR boxes to PDF words, +1.09 layout) is superseded by KDL's layout and hurts KDL's boxes. Rejected: `corner`, larger output budget for truncated pages, block-count routing rules, table consensus (`DECISIONS.md`, `IDEAS.md`).
 
 Noise floor for changes that re-run a model: 0.42 overall, 1.85 tables, 0.89 charts, 1.17 forms. Merges from the same cached base run need only the paired interval.
 
 ## In progress
 
-- **Confirmation on the sealed test split** (1,734 pages; first use of the test split). KDL inference on test (job 47843897, `runs/parse-test/kdl_frontier_nano_v2`), `merge_v6` on test (job 47843898, `runs/parse-test/merge_v6`), then `route_charts` on test (`jobs/route.sh ... SPLIT=test TAG=test FIRST_ROOT=runs/parse-test SECOND_ROOT=runs/parse-test`) and paired comparisons against LightOnOCR's test pages (`runs/scores/route_charts-vs-lightonocr3_4b_vllm-test.json`, `merge_v6-vs-lightonocr3_4b_vllm-test.json`). All test outputs live under `runs/parse-test/`, so dev reports are never rewritten.
+- **Confirmation on the sealed test split** (1,734 pages; first use of the test split). KDL inference on test (job 47843897, `runs/parse-test/kdl_frontier_nano_v2`), `merge_v6` on test (job 47843898, done), then `route_charts`, `merge_v7_nosnap` and `route_charts_v7` on test (`jobs/route.sh ... SPLIT=test TAG=test FIRST_ROOT=runs/parse-test SECOND_ROOT=runs/parse-test`) and paired comparisons against LightOnOCR's test pages (`runs/scores/*-vs-lightonocr3_4b_vllm-test.json`). All test outputs live under `runs/parse-test/`, so dev reports are never rewritten.
 
 ## Results so far
 
@@ -48,7 +48,7 @@ All runs are logged in `results/parsebench2.tsv`. Full-set runs (all 4,317 pages
 | `tesseract_eng` | OCR, CPU | 29.31 | 45.28 | 65.70 | 0.10 | 0.01 | 0.00 | 64.77 |
 | `pypdf_baseline` | text layer, CPU | 28.37 | 52.40 | 54.01 | 0.10 | 0.00 | 0.00 | 63.70 |
 
-Dev split (2,583 pages): LightOnOCR 78.77, KDL-Frontier-Parser-nano-v2 80.54, `merge_v6` 80.43, `route_charts` 81.99.
+Dev split (2,583 pages): LightOnOCR 78.77, KDL-Frontier-Parser-nano-v2 80.54, `merge_v6` 80.43, `merge_v7_nosnap` 81.07, `route_charts` 81.99, `route_charts_v7` 82.58.
 
 - **Milestone MB done:** LightOnOCR-3 4B reproduces its published row (78.14 against 78.29, every dimension within 0.75).
 - Sampling noise (dev, cluster bootstrap): ±1.3 points overall for one system; paired differences are much tighter.
@@ -68,7 +68,7 @@ Priority set on 2026-11-19: parsing first, schema extraction second. Goal: the h
 1. Done: ParseBench 2 on PALMA; LightOnOCR-3 4B reproduced; splits and noise floors; classical tools measured.
 2. Finish the test confirmation (in progress) and write it into `DECISIONS.md`, including whether the `sparse` step (thresholds chosen on dev) holds.
 3. Tables, the largest remaining gap (79.8 against an oracle of 90.2 on dev): choose per table among LightOnOCR, KDL and the text layer. Candidate signal: agreement between the three versions of a table (consensus), which needs no labels.
-4. Layout (85.5 against 91.8): KDL is better on layout pages (89.2) but worse on text and forms, and block-count rules did not generalise. Element-level merging (KDL boxes with LightOnOCR text) needs one adapter for both formats; look at converting KDL elements into LightOnOCR's layout format.
+4. Layout: done for now. KDL's layout items under LightOnOCR's text (89.06 on dev, oracle 91.8).
 5. More VLMs, screened first (`SPLIT=screen`): Infinity-Parser2 Pro (78.41), Chandra 2 (77.45), MinerU2.5-Pro (76.77), PaddleOCR-VL 1.6, dots.mocr. Add a `case` entry in `jobs/bench_vllm.sh` from each provider's docstring.
 6. Build the orchestrator for the research loop (PRD section 9a): instruction file, `IDEAS.md` backlog, results log, a loop starting a fresh headless Claude Code per iteration, permission allowlist.
 7. Step two, later: schema extraction on top of the best parse, checked on ExtractBench.
