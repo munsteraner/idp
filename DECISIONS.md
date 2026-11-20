@@ -151,3 +151,22 @@ Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and unde
 **Result** on dev (job 47837129; paired against LightOnOCR rep1, job 47837162): overall 79.61 against 78.77, **+0.84 [+0.69, +0.99]**; formatting **+5.06 [+4.16, +5.94]** (strikeout 13.0 → 52.5, underline 20.0 → 60.6, formatting on text pages 83.8 → 89.4); text −0.02 [−0.06, 0.00]; tables, charts, layout, forms unchanged. Kept. Not yet scored on the test split.
 
 **Open.** Strikeout stays below `pymupdf4llm` alone (74.8): spans that the VLM transcribed differently (for example "Planning Directorr" against "Planning Director r") or dropped are not matched. Fuzzy matching is the next step for this idea.
+
+## 2026-11-20: Kept: replace tables LightOnOCR left unfinished (merge_trunc, merge_v2); rejected: corner-cell repair
+
+**Finding.** LightOnOCR stops at its output budget (12,288 tokens, the harness setting) on long tables and leaves an opened `<table>` that never closes: 72 of 224 dense-table pages on dev, 16 of 299 `tables` pages, 8 of 243 insurance pages, a few forms and layout pages, none on text, headings or charts. On the 69 dev table pages where this leaves LightOnOCR without any complete table, it averages 36.2 against 67.3 for `pymupdf4llm_markdown`.
+
+**Change.** Merge step `trunc` (`idp.merge_tables`): when the base page ends inside an unclosed table, keep the base output up to that table and put there the donor table that shares the most numbers with the partial one, followed by the donor's later tables. The trigger is visible in the output; no labels are used. `idp.merge` composes steps; `jobs/merge.sh` builds and scores a merge on dev.
+
+**Results** on dev (paired against LightOnOCR rep1 unless noted):
+
+| Pipeline | Steps | Overall | Paired difference | Tables | Forms |
+| --- | --- | --- | --- | --- | --- |
+| `merge_trunc` | trunc | 79.09 | +0.32 [+0.19, +0.50] | +2.09 [+1.30, +3.20] | −0.18 [−0.43, −0.01] |
+| `merge_v2` | decor, trunc | **79.93** | **+1.16 [+0.96, +1.40]** | +2.09 | −0.18 |
+| `merge_corner` | corner | 78.80 | +0.03 [−0.01, +0.06] | +0.16 [−0.05, +0.35] | 0 |
+| `merge_v3` | decor, trunc, corner | 79.95 | +0.03 [−0.01, +0.06] against `merge_v2` | +0.15 | 0 |
+
+- `trunc` kept. Dense tables rise from 63.0 to 69.9. The small forms loss comes from 4 forms pages whose unclosed "table" held most of the form; a token-coverage guard did not separate them from the gains, and a guard fitted to 4 pages would fit noise, so the step stays as it is.
+- `corner` (prepend an empty header cell when the header row is exactly one cell narrower than the body, no rowspans) rejected: the interval includes zero. LightOnOCR drops the stub cell on 22 dev table pages (average 41.7 there), but the repair recovers little, so the shifted headers are not the main loss on those pages.
+- Best system: `merge_v2`. Not yet scored on the test split.
