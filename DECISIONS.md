@@ -399,3 +399,9 @@ Identical candidates vote once. Voters: the base, Infinity-Parser2 Pro, Chandra 
 On test against `route_charts_v7`: text +5.91 [+3.90, +7.91], tables +9.86 [+7.40, +13.69], forms +1.73 [+0.16, +3.68], formatting −0.19, charts and layout unchanged. The gain on test (+2.89) equals the gain on dev (+2.79 over `route_charts_v7`), so the variants compared on dev did not overfit it.
 
 **Cost per page.** Five parsers instead of two: LightOnOCR-3 4B, KDL (1.2B), Chandra 2 (5.3B) and dots.mocr (3B) on RTX 4090s, Infinity-Parser2 Pro (35B MoE) on an H200, plus CPU for the vote (about 16 minutes on 32 cores per 2,583 pages). Measured inference times are in `results/parsebench2.tsv`.
+
+## 2026-11-21: Rejected: votes restricted to chart pages and chart-capable parsers
+
+**Test.** On top of `v8` (dev), only the pages routed to KDL for charts (`--only-source kdl_frontier_nano_v2`, 413 pages), voters KDL (the base there), Infinity-Parser2 Pro, Chandra 2 and the LightOnOCR merge `merge_v7n` (dots.mocr and the text layer, which read no charts, left out): `v8c_tmbr` (table-metric agreement, 196 pages changed) and `v8c_pmbr` (mixed agreement, 241 changed).
+
+**Result.** Charts 74.58 → 71.83 (`v8c_tmbr`) and 68.88 (`v8c_pmbr`); nothing else moves. As with `v7_tvote5all`: KDL reads chart data clearly better than the others (78.3 on screen against 62.5 and 53.8), so their consensus pulls away from the best reader. Chart pages stay with KDL; better charts need a better chart reader, not a vote.
