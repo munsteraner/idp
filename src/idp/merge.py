@@ -22,7 +22,8 @@ so the official scorer scores them like any other run. Register the pipeline nam
 
 With ``--keep-name``, pages keep their own ``pipeline_name`` (needed when the base is a router whose pages
 come from several pipelines; the layout scorer resolves each page's adapter from it), and with
-``--skip-source NAME`` pages whose base result comes from that pipeline are copied unchanged.
+``--skip-source NAME`` pages whose base result comes from that pipeline are copied unchanged
+(``--only-source NAME``: only those pages are merged).
 
 With ``--override RUN:PIPELINE`` a page of that run replaces the base page before the steps run, where it
 exists and leaves no table unfinished (for example the base model re-run with a larger output budget on the
@@ -173,7 +174,7 @@ def _merge_page(base_file: Path) -> tuple[bool, Counter]:
             if o_md.strip() and unfinished_table_start(o_md) is None:
                 base = o
                 n["override"] += 1
-    if base.get("pipeline_name") in a.skip_source:
+    if base.get("pipeline_name") in a.skip_source or (a.only_source and base.get("pipeline_name") not in a.only_source):
         out_file.write_text(json.dumps(base))
         return False, Counter({"skipped": 1})
     others = []
@@ -244,6 +245,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--keep-name", action="store_true", help="pages keep their own pipeline_name")
     p.add_argument("--skip-source", action="append", default=[],
                    help="copy pages whose base result comes from this pipeline unchanged")
+    p.add_argument("--only-source", action="append", default=[],
+                   help="merge only pages whose base result comes from this pipeline; copy the others unchanged")
     p.add_argument("--workers", type=int, default=1, help="pages merged in parallel processes")
     p.add_argument("--fill-missing", action="store_true",
                    help="a page the base has no result for takes the vote among the --extra-donor results")

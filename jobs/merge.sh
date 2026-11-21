@@ -11,7 +11,8 @@
 #        [SPLIT=test TAG=test]   test runs go to runs/parse-test/ so dev reports are never rewritten
 #        [BASE_ROOT=runs/parse] [DONOR_ROOT=runs/parse]   where the input runs live
 #        [LAYOUT_FROM=kdl_frontier_nano_v2 LAYOUT_ROOT=runs/parse]   layout items from another run
-#        [KEEP_NAME=1] [SKIP_SOURCE=kdl_frontier_nano_v2]   for a router as base (pages keep their source name)
+#        [KEEP_NAME=1] [SKIP_SOURCE=kdl_frontier_nano_v2] [ONLY_SOURCE=...]   for a router as base (pages keep
+#        their source name; skip the pages of one source, or merge only those)
 #        ["EXTRA_DONORS=runs/parse-pub/chandra2_vllm ..."]   further candidates for the tvote step (run paths)
 #        [FILL_MISSING=1]   pages the base has no result for take the vote among the EXTRA_DONORS
 #        [WORKERS=16]   pages in parallel processes (merge_big.sh: 32, for the slow tmbr step)
@@ -28,7 +29,7 @@ source "$CODE/jobs/_bench.sh"
   --data-dir "$P/work/data_parsebench-2" \
   ${OVERRIDE:+--override "$P/runs/parse/$OVERRIDE/parsebench-2:$OVERRIDE"} \
   ${LAYOUT_FROM:+--layout-from "$P/${LAYOUT_ROOT:-runs/parse}/$LAYOUT_FROM/parsebench-2:$LAYOUT_FROM"} \
-  ${KEEP_NAME:+--keep-name} ${SKIP_SOURCE:+--skip-source "$SKIP_SOURCE"} "${EXTRA_ARGS[@]}" \
+  ${KEEP_NAME:+--keep-name} ${SKIP_SOURCE:+--skip-source "$SKIP_SOURCE"} ${ONLY_SOURCE:+--only-source "$ONLY_SOURCE"} "${EXTRA_ARGS[@]}" \
   --workers "${WORKERS:-1}" ${FILL_MISSING:+--fill-missing}
 # SCORE=0 builds without scoring (test-split pieces of a system not yet confirmed stay unscored).
 if [ "${SCORE:-1}" != 0 ]; then
