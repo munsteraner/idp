@@ -86,7 +86,7 @@ Numbers below: mean per-page score on dev (×100) from `runs/scores/page-scores-
 
 - **Source.** Literature scout 2026-11-21 (LlamaIndex blog "Why VLMs can't read forms"; CommonForms). VLMs misread checkboxes; fillable PDFs carry the truth in AcroForm fields.
 - **Test.** First check whether the ParseBench 2 PDFs of `fillable_forms` and `forms` keep their form fields (PyMuPDF widgets). If they do: write field values and checkbox states into the markdown where the page's text places them. CPU only.
-- **Status.** Open; feasibility check first.
+- **Status.** Not feasible as stated (2026-11-21): in 4 dev `fillable_forms` PDFs the widgets exist (Text, CheckBox, Button, up to 133 per page) but every value is empty, the forms are blank; 2 dev `forms` PDFs (filled, typed) are flattened, no widgets, the typed values sit in the text layer, which the merges already use. A forms idea would have to read drawn checkbox marks from the page instead.
 
 ## 14. Per-table choice inside the page vote, with structural plausibility as tie-breaker
 
