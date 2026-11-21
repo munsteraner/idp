@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-21.
+Last updated: 2026-11-21 (afternoon).
 
 ## Done
 
@@ -12,7 +12,7 @@ Last updated: 2026-11-21.
 
 ## Best system so far
 
-`route_charts_v7`: **82.58 on dev** against 78.77 for LightOnOCR-3 4B alone (+3.81); **81.12 on the sealed test split** against 77.20 (**+3.92 [+3.08, +4.82]**), so the gain holds on held-out documents. Built from the parse cache (LightOnOCR-3 4B, KDL-Frontier-Parser-nano-v2, pymupdf4llm and the PDF text layer):
+`route_charts_v7`: **82.00 on the full set** (all 4,317 pages, the leaderboard's measure), +1.93 [+1.35, +2.54] over KDL-Frontier-Parser-nano-v2, the best published open-weight row (80.07, reproduced exactly on our setup). **82.58 on dev** against 78.77 for LightOnOCR-3 4B alone (+3.81); **81.12 on the sealed test split** against 77.20 (**+3.92 [+3.08, +4.82]**), so the gain holds on held-out documents; on test it is +1.75 [+0.67, +2.74] over KDL (79.37). Built from the parse cache (LightOnOCR-3 4B, KDL-Frontier-Parser-nano-v2, pymupdf4llm and the PDF text layer):
 
 1. `merge_v7_nosnap` (81.07 on dev): LightOnOCR's markdown with three merge steps, and KDL's layout items:
 
@@ -31,7 +31,12 @@ Noise floor for changes that re-run a model: 0.42 overall, 1.85 tables, 0.89 cha
 
 ## In progress
 
-Nothing is running.
+Screening runs on `SPLIT=screen` (inference only; score afterwards with `jobs/bench_score.sh SPLIT=screen`, then compare with LightOnOCR and KDL on screen):
+
+- Chandra 2, `chandra2_vllm`, job 47848528 (`gpuexpress-zen4`).
+- dots.mocr, `dots_ocr_1_5_parse`, jobs 47848529 (table subsets) and 47848530 (the other subsets) on `gpu4090`.
+
+GPU limit raised to 4 at once until 2026-11-23 00:00 (`DECISIONS.md`); `requeue-gpu` allowed on its RTX 4090 nodes.
 
 ## Results so far
 
@@ -48,6 +53,7 @@ All runs are logged in `results/parsebench2.tsv`. Full-set runs (all 4,317 pages
 | `tesseract_eng` | OCR, CPU | 29.31 | 45.28 | 65.70 | 0.10 | 0.01 | 0.00 | 64.77 |
 | `pypdf_baseline` | text layer, CPU | 28.37 | 52.40 | 54.01 | 0.10 | 0.00 | 0.00 | 63.70 |
 
+Full set, merged systems (2026-11-21): KDL-Frontier-Parser-nano-v2 80.07 (dev and test runs combined), `merge_v7_nosnap` 80.27, `route_charts_v7` 82.00. Runs in `runs/parse-all/`.
 Dev split (2,583 pages): LightOnOCR 78.77, KDL-Frontier-Parser-nano-v2 80.54, `merge_v6` 80.43, `merge_v7_nosnap` 81.07, `route_charts` 81.99, `route_charts_v7` 82.58.
 Test split (1,734 pages, scored once on 2026-11-20/21): LightOnOCR 77.20, `merge_v6` 78.67, `merge_v7_nosnap` 79.06, `route_charts` 80.74, `route_charts_v7` 81.12.
 
@@ -64,11 +70,11 @@ Test split (1,734 pages, scored once on 2026-11-20/21): LightOnOCR 77.20, `merge
 
 ## Next
 
-Priority set on 2026-11-19: parsing first, schema extraction second. Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated search (PRD section 9a), confirmed on held-out data. Done so far: harness and reproduction, splits and noise floors, classical tools, merges and routing, test confirmation of the best system.
+Priority set on 2026-11-19: parsing first, schema extraction second. Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated search (PRD section 9a), confirmed on held-out data. Done so far: harness and reproduction, splits and noise floors, classical tools, merges and routing, test confirmation of the best system, full-set score (82.00 against 80.07).
 
-1. **Full-set score of `route_charts_v7`** (all 4,317 pages, directly comparable with the leaderboard, best open row 80.07). Small CPU job: build `merge_v7_nosnap` and `route_charts_v7` on `SPLIT=all TAG=all`. KDL's outputs are split between `runs/parse/kdl_frontier_nano_v2` (dev) and `runs/parse-test/kdl_frontier_nano_v2` (test); give the router and the layout transplant a combined input (for example a third run directory with both sets of result files) before building.
-2. **Screen more VLMs on `SPLIT=screen`** (compute policy in `DECISIONS.md`). Strongest expected lever: KDL brought the largest gains (charts +12, layout +3.5 on test), and the published table scores of Infinity-Parser2 Pro (tables 86.27, text 85.55) and Chandra 2 (tables 85.60, formatting 88.80) are far above LightOnOCR (78.25) and KDL (80.54) on tables, the largest remaining gap (dev 79.8 against an oracle of 90.2). Then MinerU2.5-Pro, PaddleOCR-VL 1.6, dots.mocr. For each: read the provider's docstring in `parse_bench/inference/providers/parse/`, check the licence, add a `case` entry to `jobs/bench_vllm.sh`, run with `jobs/bench_vllm_express.sh` if `gpu4090` has a long queue.
-3. **Route or merge with the new VLMs**, starting with tables: per page or per table (element level, like the KDL layout transplant). Measure on dev with `score_split --baseline route_charts_v7`; the noise floor applies to model runs.
+1. **Screen more VLMs on `SPLIT=screen`** (compute policy in `DECISIONS.md`). Running: Chandra 2, dots.mocr. Blocked: Infinity-Parser2 Pro (35B MoE, 70 GB: needs 4 RTX 4090s or an H200, and the `infinity-parser2` SDK), MinerU2.5-Pro and PaddleOCR-VL 1.6 (custom `/predict` servers the harness does not ship); details in `DECISIONS.md` 2026-11-21. Strongest expected lever: KDL brought the largest gains (charts +12, layout +3.5 on test), and the published table scores of Infinity-Parser2 Pro (tables 86.27, text 85.55) and Chandra 2 (tables 85.60, formatting 88.80) are far above LightOnOCR (78.25) and KDL (80.54) on tables, the largest remaining gap (dev 79.8 against an oracle of 90.2). For each: read the provider's docstring in `parse_bench/inference/providers/parse/`, check the licence, add a `case` entry to `jobs/bench_vllm.sh`, run with `jobs/bench_vllm_express.sh` if `gpu4090` has a long queue.
+2. **Route or merge with the new VLMs**, starting with tables: per page or per table (element level, like the KDL layout transplant). Measure on dev with `score_split --baseline route_charts_v7`; the noise floor applies to model runs.
+3. **A complete text-layer donor** (`IDEAS.md` idea 7): `pymupdf4llm_markdown` has results on only 3,527 of 4,317 pages because the harness's `pymupdf4llm` extra (`pymupdf4llm==1.28.2`, `rapidocr==3.9.2`) is not installed; no merge step runs on the other 790. CPU-only: rerun the failed pages (with the extra, or with `use_ocr: False`), rebuild the merges on dev, paired interval.
 4. **Orchestrator for the research loop** (PRD section 9a): the manual cycle is now fixed (hypothesis in `IDEAS.md` → merge step or router → `jobs/merge.sh` or `jobs/route.sh` on dev → `score_split` paired interval → row in `results/parsebench2.tsv` and entry in `DECISIONS.md`), so it can be automated: instruction file, a loop starting a fresh headless Claude Code per iteration, permission allowlist, test split unreadable to the loop.
 5. Step two, later: schema extraction on top of the best parse, checked on ExtractBench.
 
