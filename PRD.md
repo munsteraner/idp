@@ -300,6 +300,7 @@ Phase 1 processes public and synthetic documents only, so any provider may be us
 **Standing limits for unattended work (set by the user, Nov 19, 2026)**
 
 - Slurm jobs: Claude Code may submit without asking up to 2 GPUs at once, 4 hours per job and about 30 GPU-hours per day; CPU jobs within partition limits. It may cancel only jobs it submitted. Anything larger needs approval.
+- Temporary raise (user, 2026-11-21): up to 4 GPUs at once for jobs that end before 2026-11-23 00:00; the preemptible `requeue-gpu` partition may be used on its RTX 4090 nodes. Both enforced in `palma.py`.
 - Files on PALMA II: create and write only inside one project directory on scratch. Public models and datasets may be downloaded there after a licence check. Nothing outside it is deleted or overwritten; deleting inside it needs approval unless it is a cache Claude Code created.
 - API spend: the caps in section 6.
 - Every experiment is logged (section 9a). The limits are enforced in the submit skill and the harness, not left to judgement.

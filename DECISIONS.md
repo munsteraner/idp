@@ -250,3 +250,9 @@ Both checks left open on 2026-11-20 had finished on PALMA (jobs 47844277, 478442
 
 - The best system and the KDL layout transplant hold on held-out documents.
 - `sparse`, the one step whose thresholds were chosen on dev, has the same size on test, but its interval includes zero. It stays in the system (no harm, same direction) and is marked unconfirmed; it must not be cited as an established gain.
+
+## 2026-11-21: Temporary GPU limit raise for the weekend; requeue-gpu on RTX 4090s allowed
+
+**Changed.** The user raised the concurrent GPU limit (PRD section 8) from 2 to 4 for the weekend: a submission may use the raised limit only if its time limit ends before 2026-11-23 00:00, so no job holds more than 2 GPUs after Sunday. The 4 h per job and 30 GPU-hours per day caps are unchanged. The preemptible `requeue-gpu` partition may be used on its RTX 4090 nodes only (`--gres=gpu:rtx4090:N`); its A40s are excluded because a different GPU type changes outputs inside a comparison (compute policy, 2026-11-20). Both rules are enforced in `palma.py` (`GPU_RAISES`, `REQUEUE_GPU`).
+
+**Why.** Saturday, quiet cluster: at 12:40 `gpuexpress-zen4` had 5 of 6 RTX 4090s free (but one running job per user), `gpu4090` about 4 free with 101 jobs pending, `requeue-gpu` free RTX 4090s. Screening the next VLM candidates (step 2 in `STATUS.md`) can then run two models at a time. Bench inference skips pages already done, so a preempted job on `requeue-gpu` resumes without repeating work.

@@ -29,6 +29,7 @@ All cluster access goes through `.claude/skills/palma/palma.py`. It enforces the
 ## Standing limits (set by the user, 2026-11-19)
 
 - At most 2 GPUs held or queued at once, 4 hours per job, 30 GPU-hours per day (worst case counted). CPU jobs within partition limits.
+- Temporary raise (user, 2026-11-21): 4 GPUs at once for jobs whose time limit ends before 2026-11-23 00:00 (`GPU_RAISES` in `palma.py`). `requeue-gpu` is allowed with `--gres=gpu:rtx4090:N` only (no A40s); jobs there must skip finished work, as the bench jobs do.
 - Job names start with `idp-`. Every script sets `--partition` and `--time`.
 - Write only inside `/scratch/tmp/$USER/idp`. Public models and datasets may be downloaded there after a licence check. Never delete or overwrite outside it; deleting inside it needs the user's OK unless it is a cache this project created. The user's other data lives next to it on the same scratch.
 - If the wrapper refuses a submission, do not work around it (no splitting to dodge the daily cap, no renaming). Ask the user.
@@ -51,7 +52,7 @@ All cluster access goes through `.claude/skills/palma/palma.py`. It enforces the
 | `gpua100` | A100, 40 GB, 4 per node | 7 d | Mid-size models |
 | `gpuh200` | H200, 8 per node | 7 d | Large models (27 to 35B class); most expensive, queue is long |
 | `gpuh200mini` | H200 slices of 35 GB | 2 d | Request as `--gres=gpu:1g.35gb:1`; cheaper alternative to a full H200 |
-| `requeue-gpu` | RTX 4090 and A40 | 1 d | Jobs can be preempted and requeued; only for requeue-safe jobs |
+| `requeue-gpu` | RTX 4090 and A40 | 1 d | Jobs can be preempted and requeued; only for requeue-safe jobs, and only `--gres=gpu:rtx4090:N` |
 | `normal`, `zen4`, `express` | CPU only | 1 d, 2 d, 2 h | CPU parsing, scoring, API-calling jobs |
 
 ## Job script template

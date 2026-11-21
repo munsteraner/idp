@@ -36,6 +36,19 @@ JOB_PREFIX = "idp-"
 MAX_GPUS_AT_ONCE = 2
 MAX_HOURS_PER_JOB = 4.0
 MAX_GPU_HOURS_PER_DAY = 30.0
+# Temporary raises of MAX_GPUS_AT_ONCE approved by the user: (limit, end). The raised limit applies to a
+# submission only if the job's time limit ends before `end`, so no job holds a GPU beyond the window.
+# 2026-11-21 (Saturday, quiet cluster): 4 GPUs for the weekend.
+GPU_RAISES = [(4, dt.datetime(2026, 11, 23, 0, 0))]
+# requeue-gpu (preemptible) is allowed, approved by the user on 2026-11-21, on its RTX 4090 nodes only:
+# its A40s would change outputs inside a comparison (compute policy, DECISIONS.md 2026-11-20).
+REQUEUE_PARTITION, REQUEUE_GPU = "requeue-gpu", "rtx4090"
+
+
+def max_gpus_at_once(job_end: dt.datetime | None = None) -> int:
+    """GPU limit for a job ending at `job_end` (now if None)."""
+    end = job_end or dt.datetime.now()
+    return max([n for n, until in GPU_RAISES if end <= until], default=MAX_GPUS_AT_ONCE)
 
 # First word of commands that only read state.
 READ_ONLY = {
@@ -202,7 +215,7 @@ def cmd_status() -> None:
     require_connection()
     print(ssh("squeue -u $USER -o '%.12i %.24j %.9T %.10M %.10l %.14b %R'"))
     print(f"\nGPU-hours today (worst case): {gpu_hours_today():.1f} / {MAX_GPU_HOURS_PER_DAY:.0f}")
-    print(f"GPUs active or queued: {active_gpus()} / {MAX_GPUS_AT_ONCE}")
+    print(f"GPUs active or queued: {active_gpus()} / {max_gpus_at_once()}")
     print("\nGPU nodes with free capacity (partition node state gres cpus A/I/O/T):")
     print(ssh("sinfo -N -h -t idle,mix -o '%P %N %t %G %C' "
               "-p gpuexpress-zen4,gpu4090,gpua100,gpuh200,gpuh200mini,requeue-gpu"))
@@ -247,6 +260,9 @@ def cmd_submit(args: list[str]) -> None:
         problems.append("use --gres=gpu:N or --gpus=N so the GPU count can be checked")
     if int(o.get("nodes", "1").split("-")[-1] or 1) > 1:
         problems.append("multi-node jobs need the user's approval")
+    if REQUEUE_PARTITION in o.get("partition", "").split(",") and \
+            not re.fullmatch(rf"gpu:{REQUEUE_GPU}:\d+", o.get("gres", "")):
+        problems.append(f"{REQUEUE_PARTITION} only with --gres=gpu:{REQUEUE_GPU}:N (no A40s)")
 
     gpus = gpus_in(o.get("gres", "")) or (gpus_in("gres/gpu=" + o["gpus"].split(":")[-1])
                                          if "gpus" in o else 0)
@@ -256,9 +272,10 @@ def cmd_submit(args: list[str]) -> None:
     if not problems and gpus:
         require_connection()
         act, used = active_gpus(), gpu_hours_today()
-        if act + gpus * conc > MAX_GPUS_AT_ONCE:
+        limit = max_gpus_at_once(dt.datetime.now() + dt.timedelta(hours=hours))
+        if act + gpus * conc > limit:
             problems.append(f"would hold {act} + {gpus * conc} GPUs at once, "
-                            f"limit {MAX_GPUS_AT_ONCE} (add an array throttle such as %2)")
+                            f"limit {limit} (add an array throttle such as %2)")
         need = gpus * tasks * hours
         if used + need > MAX_GPU_HOURS_PER_DAY:
             problems.append(f"worst case {need:.1f} GPU-h on top of {used:.1f} today "
