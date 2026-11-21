@@ -70,7 +70,9 @@ def oracle(runs: dict[str, dict[str, list[Any]]], keep: set[str]) -> dict:
 
 
 def page_scores(runs: dict[str, dict[str, list[Any]]]) -> list[dict]:
-    """Every page's official value on each of its slot metrics, per run (failed pages count 0)."""
+    """Every page's official value on each of its slot metrics, per run. Failed pages count 0 (the harness pads
+    failures with 0); a page that has no value for the metric (no such rule on the page) gets no row, as the
+    harness leaves it out of the average. So the mean of a slot's rows equals the official ``avg_<metric>``."""
     from parse_bench.evaluation.next_score import NEXT_DIMENSIONS
 
     rows = []
@@ -78,6 +80,8 @@ def page_scores(runs: dict[str, dict[str, list[Any]]]) -> list[dict]:
         for slot in slots:
             for name, run in runs.items():
                 for r in run.get(slot.subset, []):
+                    if r.success and not any(m.metric_name == slot.metric for m in r.metrics):
+                        continue
                     rows.append({"id": r.test_id, "dimension": dimension, "metric": slot.metric,
                                  "pipeline": name, "value": round(_value(r, slot.metric), 6)})
     return rows
