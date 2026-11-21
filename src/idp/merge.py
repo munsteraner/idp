@@ -53,7 +53,7 @@ from idp.merge_tables import (
     vote_tables,
 )
 
-STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap", "tables", "tvote", "tmbr", "xmbr", "xmbra", "pmbr")
+STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap", "tables", "tvote", "tmbr", "xmbr", "xmbra", "pmbr", "takex")
 
 
 def merge_markdown(
@@ -70,6 +70,11 @@ def merge_markdown(
     if "tmbr" in steps:
         out, n = vote_tables(out, [donor, *(others or [])], agreement=metric_agreement)
         applied["tmbr"] += n
+    if "takex" in steps:
+        cand = (others or [""])[0]
+        if cand and cand.strip() and cand != out:
+            out, _ = apply_decor(cand, donor_spans(donor), min_chars, fuzzy=90)
+            applied["takex"] += 1
     if "pmbr" in steps:
         from idp.merge_text import page_agreement, vote_text
 
