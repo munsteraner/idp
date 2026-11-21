@@ -320,3 +320,21 @@ Both checks left open on 2026-11-20 had finished on PALMA (jobs 47844277, 478442
 - Chandra 2 (formatting +5.5, tables +10.2) and dots.mocr (text +6.3) are already being screened on PALMA.
 - MinerU2.5-Pro and PaddleOCR-VL 1.6 add the least and need custom servers; they stay deferred.
 - Any second parser raises a best-of-two oracle through page-level variance alone, so the ceilings rank candidates; they do not promise gains. The next step is a parse-time rule, built on dev from these published outputs, then checked with our own runs.
+
+## 2026-11-21: Screening runs on PALMA: our runs reproduce the published outputs; Infinity and Chandra beat our best system on tables
+
+**Runs** (`SPLIT=screen`, 869 pages, scored with `jobs/bench_score.sh`; paired cluster bootstrap with `score_split`, jobs 47848873 to 47848878):
+
+| Pipeline | GPU, wall clock | Screen | Ours − published (paired) | Tables − `route_charts_v7` (paired) |
+| --- | --- | --- | --- | --- |
+| Chandra 2 | RTX 4090, 67 min | 77.86 | −0.30 [−0.75, +0.29] | **+6.82 [+2.04, +9.21]** |
+| dots.mocr | 2 RTX 4090s, 63 min each | 63.15 | +0.07 [−0.24, +0.39] | +2.50 [−0.37, +5.33] |
+| Infinity-Parser2 Pro | H200, 49 min | 78.48 | −0.15 [−1.19, +0.74] | **+8.42 [+4.08, +10.86]** |
+
+`route_charts_v7` scores 83.82 on screen (tables 79.26). Per dimension, the candidates' own scores on screen: Chandra text 79.22, formatting 89.43, tables 86.09; dots text 86.91, tables 81.77, charts 1.09; Infinity text 86.06, tables 87.69, layout 86.61.
+
+**What it shows.**
+
+- Our setup reproduces all three models' published outputs (every overall interval includes zero), as it did for LightOnOCR and KDL. The published outputs in `runs/parse-pub/` are therefore a valid stand-in for building rules on dev; a rule found there is checked afterwards with our own runs.
+- Overall, every candidate is below `route_charts_v7` (Infinity −5.33, Chandra −5.96, dots −20.67), but Infinity and Chandra are clearly better on tables, the largest gap. The next system routes or merges tables, not whole pages.
+- Infinity's run needed the SDK in its own environment and `enable_thinking: false`; with that, 2 of 869 pages were empty (the provider could not parse the model's JSON during figure parsing).

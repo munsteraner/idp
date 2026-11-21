@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-21 (afternoon).
+Last updated: 2026-11-21 (15:20).
 
 ## Done
 
@@ -31,15 +31,9 @@ Noise floor for changes that re-run a model: 0.42 overall, 1.85 tables, 0.89 cha
 
 ## In progress
 
-Screening runs on `SPLIT=screen` (inference only; score afterwards with `jobs/bench_score.sh SPLIT=screen`, then compare with LightOnOCR and KDL on screen):
+Nothing is running. GPU limit raised to 4 at once until 2026-11-23 00:00 (`DECISIONS.md`); `requeue-gpu` allowed on its RTX 4090 nodes.
 
-- Chandra 2, `chandra2_vllm`, job 47848528 (`gpuexpress-zen4`).
-- dots.mocr, `dots_ocr_1_5_parse`, jobs 47848529 (table subsets) and 47848530 (the other subsets) on `gpu4090`.
-- Infinity-Parser2 Pro, `infinity_parser2_pro_deep`, job 47848578 on one H200 (`jobs/bench_vllm_h200.sh`; SDK in its own environment, `ENV_GROUPS=infinity`).
-
-When they finish: score each with `jobs/bench_score.sh SPLIT=screen`, and compare our outputs page by page with the published ones in `runs/parse-pub/` (the same model should reproduce them, as KDL did).
-
-GPU limit raised to 4 at once until 2026-11-23 00:00 (`DECISIONS.md`); `requeue-gpu` allowed on its RTX 4090 nodes.
+Screening runs finished (2026-11-21, `SPLIT=screen`, outputs in `runs/parse/<pipeline>/`): Chandra 2 77.86, dots.mocr 63.15, Infinity-Parser2 Pro 78.48 (H200). Each reproduces its published outputs (paired difference within ±0.3 overall, intervals include zero). On tables they beat `route_charts_v7` (79.26 on screen): Infinity +8.42 [+4.08, +10.86], Chandra +6.82 [+2.04, +9.21], dots +2.50 (interval includes zero).
 
 ## Results so far
 
@@ -75,8 +69,8 @@ Test split (1,734 pages, scored once on 2026-11-20/21): LightOnOCR 77.20, `merge
 
 Priority set on 2026-11-19: parsing first, schema extraction second. Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated search (PRD section 9a), confirmed on held-out data. Done so far: harness and reproduction, splits and noise floors, classical tools, merges and routing, test confirmation of the best system, full-set score (82.00 against 80.07).
 
-1. **Screen more VLMs** (compute policy in `DECISIONS.md`). Published outputs of the leaderboard pipelines now screen candidates without a GPU (`jobs/import_published.sh`, `runs/parse-pub/`): dev routing ceilings over `route_charts_v7` (82.58) are Infinity-Parser2 Pro 87.37, Chandra 2 87.28, dots.mocr 86.37, MinerU2.5-Pro 86.29, PaddleOCR-VL 1.6 85.40, all five 90.92 (`DECISIONS.md` 2026-11-21). Running on PALMA: Chandra 2, dots.mocr, Infinity-Parser2 Pro. Deferred: MinerU and PaddleOCR (smallest ceilings, custom `/predict` servers). Strongest expected lever: KDL brought the largest gains (charts +12, layout +3.5 on test), and the published table scores of Infinity-Parser2 Pro (tables 86.27, text 85.55) and Chandra 2 (tables 85.60, formatting 88.80) are far above LightOnOCR (78.25) and KDL (80.54) on tables, the largest remaining gap (dev 79.8 against an oracle of 90.2). For each: read the provider's docstring in `parse_bench/inference/providers/parse/`, check the licence, add a `case` entry to `jobs/bench_vllm.sh`, run with `jobs/bench_vllm_express.sh` if `gpu4090` has a long queue.
-2. **Route or merge with the new VLMs**, starting with tables. Build the rule on dev from the published outputs in `runs/parse-pub/` (no GPU needed), then check it with our own runs: per page or per table (element level, like the KDL layout transplant). Measure on dev with `score_split --baseline route_charts_v7`; the noise floor applies to model runs.
+1. **Screen more VLMs**: done for Chandra 2, dots.mocr and Infinity-Parser2 Pro (see above; dev routing ceilings from published outputs in `DECISIONS.md` 2026-11-21). Deferred: MinerU2.5-Pro and PaddleOCR-VL 1.6 (smallest ceilings, custom `/predict` servers).
+2. **Route or merge tables from Infinity and Chandra** (the next step). Build the rule on dev from the published outputs in `runs/parse-pub/` (no GPU needed; our runs reproduce them), then run the chosen models ourselves on dev and test (remaining 3,448 pages at the screen rates: Infinity about 3 H200-hours, Chandra about 4 RTX 4090-hours) and confirm: per page or per table (element level, like the KDL layout transplant). Measure on dev with `score_split --baseline route_charts_v7`; the noise floor applies to model runs.
 3. **A complete text-layer donor** (`IDEAS.md` idea 7): `pymupdf4llm_markdown` has results on only 3,527 of 4,317 pages because the harness's `pymupdf4llm` extra (`pymupdf4llm==1.28.2`, `rapidocr==3.9.2`) is not installed; no merge step runs on the other 790. CPU-only: rerun the failed pages (with the extra, or with `use_ocr: False`), rebuild the merges on dev, paired interval.
 4. **Orchestrator for the research loop** (PRD section 9a): the manual cycle is now fixed (hypothesis in `IDEAS.md` → merge step or router → `jobs/merge.sh` or `jobs/route.sh` on dev → `score_split` paired interval → row in `results/parsebench2.tsv` and entry in `DECISIONS.md`), so it can be automated: instruction file, a loop starting a fresh headless Claude Code per iteration, permission allowlist, test split unreadable to the loop.
 5. Step two, later: schema extraction on top of the best parse, checked on ExtractBench.
