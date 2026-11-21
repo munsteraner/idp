@@ -35,3 +35,20 @@ def test_build_fails_on_missing_cases(tmp_path, monkeypatch):
     tsv.write_text("id\tsubset\tgroup\tsplit\ntext/a\ttext\tg1\tscreen\n")
     with pytest.raises(RuntimeError):
         build(tmp_path / "data", tsv, "screen", tmp_path / "out")
+
+
+def test_build_keeps_a_complete_tree(tmp_path, monkeypatch):
+    monkeypatch.setattr(split_dirs, "SUBSETS", ("text",))
+    data = tmp_path / "data" / "text"
+    data.mkdir(parents=True)
+    for ext in (".pdf", ".test.json"):
+        (data / f"a{ext}").write_text("a")
+    tsv = tmp_path / "s.tsv"
+    tsv.write_text("id\tsubset\tgroup\tsplit\ntext/a\ttext\tg1\tscreen\n")
+    out = tmp_path / "out"
+    build(tmp_path / "data", tsv, "screen", out)
+    marker = out / "text" / "marker"
+    marker.write_text("x")  # a rebuild would remove it
+    assert build(tmp_path / "data", tsv, "screen", out) == {"text": 1}
+    assert marker.exists()
+    assert not list(tmp_path.glob("out.tmp-*"))
