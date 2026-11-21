@@ -31,16 +31,19 @@ Noise floor for changes that re-run a model: 0.42 overall, 1.85 tables, 0.89 cha
 
 ## In progress
 
-Autonomous research mode (user, 2026-11-21): keep researching, schedule jobs as needed. Current line: tables from stronger parsers, chosen per page by agreement (`IDEAS.md` idea 9).
+Autonomous research mode (user, 2026-11-21): keep researching, schedule jobs as needed. Current line: choosing each page's content by agreement among five parsers (minimum Bayes risk with the benchmark's own metrics as agreement, no labels; `IDEAS.md` ideas 9 and 10).
 
-Done today on dev (published outputs as donors, paired against `route_charts_v7`, 82.58): cell-text vote `v7_tvote5` (voters base, Infinity, Chandra, dots.mocr, KDL) **83.87, +1.28 [+0.96, +1.65]**, tables +7.94, forms −0.78; without dots `v7_tvote4k` 83.62; the text layer as a sixth voter hurts; voting on chart pages hurts (rejected). Complete text-layer donor kept: `route_charts_v7n` +0.12 [+0.05, +0.20] (new base; built on test unscored in `runs/parse-test/route_charts_v7n`).
+Dev results so far (base `route_charts_v7n` 82.70; voters base, our own Infinity and Chandra runs, dots.mocr published outputs, KDL; chart pages routed to KDL left alone):
 
-Running:
+| System | Step | Overall | Text | Tables | Forms |
+| --- | --- | --- | --- | --- | --- |
+| `v7n_tvote4k` | table vote, cell-text agreement (no dots) | 83.80 | 84.51 | 87.29 | 79.03 |
+| `v7n_tmbr4k` | table vote, table-metric agreement (no dots) | 84.18 | 84.44 | 89.45 | 79.28 |
+| `v7n_xmbr` | text vote on pages without tables | 83.47 | 89.34 | 79.71 | 80.70 |
+| `v7n_t4k_x` | table vote, then text vote | 84.57 | 89.37 | 87.29 | 79.22 |
+| `v7n_xall` | text vote on every page | **84.89** | 89.68 | 87.91 | 80.80 |
 
-- `v7_tmbr5`, `v7_tmbr4k` (jobs 47849069, 47849070, `zen4`, 32 cores): the vote with the benchmark's table metric as agreement (minimum Bayes risk); compare with `v7_tvote5` / `v7_tvote4k`.
-- Our own runs of the voters: Infinity dev and test done (`runs/parse/`, `runs/parse-test/`, 1 failed page each); Chandra dev (47848887) and test (47848905) running; dots.mocr dev (47849105 tables, 47849106 other subsets) running, dots test still to submit (budget: 30 GPU-hours per day worst case).
-
-Next: choose vote method on dev (tvote vs tmbr), build it on `route_charts_v7n` with our own runs on dev (check it reproduces the published-output result), then build on test (`SCORE=0` pieces) and score the finished system once on test and on the full set.
+Running: `v7n_pall` (job 47849363; whole-page vote, text and table metric agreement mixed); paired intervals for `v7n_xall`; dots.mocr dev (47849105, 47849106) and test (47849315, 47849316) runs. Then: the chosen vote with our own dots outputs on dev, built on test (`SCORE=0` pieces exist: `route_charts_v7n`, Infinity, Chandra, KDL), scored once on test and on the full set.
 
 GPU limit raised to 4 at once until 2026-11-23 00:00 (`DECISIONS.md`); `requeue-gpu` allowed on its RTX 4090 nodes.
 
