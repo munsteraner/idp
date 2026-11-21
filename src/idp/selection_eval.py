@@ -21,7 +21,7 @@ import csv
 import json
 import sys
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from pathlib import Path
 
 Rule = Callable[[dict], int]
@@ -48,7 +48,7 @@ class Evaluator:
             self.header = json.loads(f.readline())
             self.records = {r["id"]: r for r in map(json.loads, f)}
 
-    def evaluate(self, rule: Rule, labels: set[str] = frozenset({"screen", "dev"})) -> dict:
+    def evaluate(self, rule: Rule, labels: Collection[str] = frozenset({"screen", "dev"})) -> dict:
         from parse_bench.evaluation.next_score import NEXT_DIMENSIONS, combine_next_score
 
         choice = {}
@@ -76,7 +76,7 @@ class Evaluator:
         out["changed"] = sum(1 for v in choice.values() if v != 0)
         return out
 
-    def oracle(self, labels: set[str] = frozenset({"screen", "dev"})) -> dict:
+    def oracle(self, labels: Collection[str] = frozenset({"screen", "dev"})) -> dict:
         """Upper bound: every slot of every page takes the best candidate (uses the labels)."""
         from parse_bench.evaluation.next_score import NEXT_DIMENSIONS, combine_next_score
 
