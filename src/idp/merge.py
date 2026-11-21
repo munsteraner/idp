@@ -7,10 +7,17 @@ Steps (each uses only the two parse outputs, no labels):
   corner an empty stub cell added where a header row is one cell short of the body (no donor needed)
   sparse all of a page's tables swapped for the donor's when the base tables hold far fewer cells
   snap   text boxes snapped to the PDF's word boxes (``idp.merge_layout``; needs --data-dir)
+  tables all of a page's complete tables replaced by the donor's (a stronger table parser as donor)
+  tvote  the page's tables taken from whichever of base, donor and --extra-donor runs agrees most with
+         the others (cell-text agreement, ``idp.merge_tables.vote_tables``); the base stays on a tie
 
 The merged outputs are written as a new pipeline in the harness results layout (base layout boxes kept),
 so the official scorer scores them like any other run. Register the pipeline name in
 ``idp.parse_pipelines.MERGES`` so the layout scorer finds its adapter.
+
+With ``--keep-name``, pages keep their own ``pipeline_name`` (needed when the base is a router whose pages
+come from several pipelines; the layout scorer resolves each page's adapter from it), and with
+``--skip-source NAME`` pages whose base result comes from that pipeline are copied unchanged.
 
 With ``--override RUN:PIPELINE`` a page of that run replaces the base page before the steps run, where it
 exists and leaves no table unfinished (for example the base model re-run with a larger output budget on the
@@ -34,15 +41,25 @@ from idp.merge_tables import (
     fix_corner_cells,
     fix_truncated_table,
     replace_sparse_page_tables,
+    swap_tables,
     unfinished_table_start,
+    vote_tables,
 )
 
-STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap")
+STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap", "tables", "tvote")
 
 
-def merge_markdown(base: str, donor: str, steps: list[str], min_chars: int = 4) -> tuple[str, Counter]:
+def merge_markdown(
+    base: str, donor: str, steps: list[str], min_chars: int = 4, others: list[str] | None = None
+) -> tuple[str, Counter]:
     applied: Counter = Counter()
     out = base
+    if "tables" in steps:
+        out, n = swap_tables(out, donor)
+        applied["tables"] += n
+    if "tvote" in steps:
+        out, n = vote_tables(out, [donor, *(others or [])])
+        applied["tvote"] += n
     if "trunc" in steps:
         out, n = fix_truncated_table(out, donor)
         applied["trunc"] += n
@@ -61,26 +78,43 @@ def merge_markdown(base: str, donor: str, steps: list[str], min_chars: int = 4) 
     return out, applied
 
 
-def merge_result(base: dict, donor: dict | None, name: str, steps: list[str], min_chars: int = 4) -> tuple[dict, Counter]:
+def _page_markdowns(result: dict | None, n_pages: int) -> dict:
+    """page_index -> markdown of a result; a result without per-page markdown (some published outputs)
+    gives its whole markdown to page 0 when the base has a single page."""
+    out = (result or {}).get("output") or {}
+    pages = {p.get("page_index"): p.get("markdown") or "" for p in out.get("pages") or []}
+    if not pages and n_pages == 1:
+        return {None: out.get("markdown") or "", 0: out.get("markdown") or ""}
+    return pages
+
+
+def merge_result(
+    base: dict, donor: dict | None, name: str, steps: list[str], min_chars: int = 4,
+    others: list[dict | None] | None = None, keep_name: bool = False,
+) -> tuple[dict, Counter]:
     result = json.loads(json.dumps(base))
-    result["pipeline_name"] = name
     output = result.get("output") or {}
-    output["pipeline_name"] = name
+    if not keep_name:
+        result["pipeline_name"] = name
+        output["pipeline_name"] = name
     applied: Counter = Counter()
     if donor is not None:
-        donor_out = donor.get("output") or {}
-        donor_pages = {p.get("page_index"): p.get("markdown") or "" for p in donor_out.get("pages") or []}
         pages = output.get("pages") or []
+        donor_pages = _page_markdowns(donor, len(pages))
+        other_pages = [_page_markdowns(o, len(pages)) for o in others or []]
         if pages:
             for page in pages:
+                i = page.get("page_index")
                 page["markdown"], n = merge_markdown(
-                    page.get("markdown") or "", donor_pages.get(page.get("page_index"), ""), steps, min_chars
+                    page.get("markdown") or "", donor_pages.get(i, ""), steps, min_chars,
+                    [o.get(i, "") for o in other_pages],
                 )
                 applied += n
             output["markdown"] = "\n\n".join(p.get("markdown") or "" for p in pages)
         else:
             output["markdown"], applied = merge_markdown(
-                output.get("markdown") or "", donor_out.get("markdown") or "", steps, min_chars
+                output.get("markdown") or "", ((donor.get("output") or {}).get("markdown") or ""), steps,
+                min_chars, [((o or {}).get("output") or {}).get("markdown") or "" for o in others or []],
             )
     result["output"] = output
     return result, applied
@@ -97,6 +131,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--override", help="RUN:PIPELINE whose complete pages replace the base pages")
     p.add_argument("--data-dir", type=Path, help="ParseBench 2 data directory (for steps that read the PDF)")
     p.add_argument("--layout-from", help="RUN:PIPELINE whose layout items replace the base's (before snap)")
+    p.add_argument("--extra-donor", action="append", default=[], help="RUN:PIPELINE, further candidates for tvote")
+    p.add_argument("--keep-name", action="store_true", help="pages keep their own pipeline_name")
+    p.add_argument("--skip-source", action="append", default=[],
+                   help="copy pages whose base result comes from this pipeline unchanged")
     p.add_argument("--split", choices=["screen", "dev", "test", "all"], default="dev",
                    help="write only the pages of this split (default dev: the test split stays sealed)")
     a = p.parse_args(argv)
@@ -113,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     donor_run, donor_name = a.donor.rsplit(":", 1)
     override_run, override_name = a.override.rsplit(":", 1) if a.override else (None, None)
     layout_run, layout_name = a.layout_from.rsplit(":", 1) if a.layout_from else (None, None)
+    extras = [e.rsplit(":", 1) for e in a.extra_donor]
     pages = changed = 0
     applied: Counter = Counter()
     for base_file in sorted(Path(base_run).glob(f"*/{base_name}/*/*.result.json")):
@@ -130,7 +169,18 @@ def main(argv: list[str] | None = None) -> int:
                 if o_md.strip() and unfinished_table_start(o_md) is None:
                     base = o
                     applied["override"] += 1
-        merged, n = merge_result(base, donor, a.name, steps, a.min_chars)
+        if base.get("pipeline_name") in a.skip_source:
+            out_file = a.out_run / subset / a.name / subset / base_file.name
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            out_file.write_text(json.dumps(base))
+            pages += 1
+            applied["skipped"] += 1
+            continue
+        others = []
+        for e_run, e_name in extras:
+            e_file = Path(e_run) / subset / e_name / subset / base_file.name
+            others.append(json.loads(e_file.read_text()) if e_file.exists() else None)
+        merged, n = merge_result(base, donor, a.name, steps, a.min_chars, others, a.keep_name)
         if layout_run:
             from idp.merge_layout import transplant_layout
 

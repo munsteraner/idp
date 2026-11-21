@@ -174,3 +174,72 @@ def replace_sparse_page_tables(
         last = m.end()
     out.append(base[last:])
     return "".join(out), 1
+
+
+def _put_tables(base: str, tables: list[str]) -> str:
+    """``base`` with its complete tables replaced by ``tables``: one for one when the counts match,
+    otherwise all of ``tables`` at the place of the first base table and the other base tables dropped."""
+    spans = [m.span() for m in _TABLE.finditer(base)]
+    if not spans:
+        return base
+    out, last = [], 0
+    for i, (start, end) in enumerate(spans):
+        out.append(base[last:start])
+        if len(spans) == len(tables):
+            out.append(tables[i])
+        elif i == 0:
+            out.append("\n\n".join(tables))
+        last = end
+    out.append(base[last:])
+    return "".join(out)
+
+
+def _complete_tables(markdown: str) -> list[str] | None:
+    """The page's tables, or None when it has none or leaves one unfinished."""
+    if not markdown or unfinished_table_start(markdown) is not None:
+        return None
+    return _TABLE.findall(markdown) or None
+
+
+def swap_tables(base: str, donor: str) -> tuple[str, int]:
+    """Replace all of the base page's tables with the donor's, when both have complete tables."""
+    b, d = _complete_tables(base), _complete_tables(donor)
+    if b is None or d is None:
+        return base, 0
+    return _put_tables(base, d), 1
+
+
+def _cell_bag(tables: list[str]) -> dict[str, int]:
+    bag: dict[str, int] = {}
+    for t in tables:
+        for c in _CELL_TEXT.findall(t):
+            text = " ".join(_TAG.sub(" ", c).split()).lower()
+            if text:
+                bag[text] = bag.get(text, 0) + 1
+    return bag
+
+
+def table_agreement(a: list[str], b: list[str]) -> float:
+    """F1 between the multisets of normalised non-empty cell texts of two table sets."""
+    ba, bb = _cell_bag(a), _cell_bag(b)
+    na, nb = sum(ba.values()), sum(bb.values())
+    if not na or not nb:
+        return 0.0
+    common = sum(min(n, bb.get(k, 0)) for k, n in ba.items())
+    return 2 * common / (na + nb)
+
+
+def vote_tables(base: str, others: list[str]) -> tuple[str, int]:
+    """Choose the page's tables by agreement: the candidate (base or one of ``others``) whose tables agree
+    most with all the other candidates' (summed ``table_agreement``) replaces the base tables. Needs complete
+    tables in the base and in at least two others; on a tie the base stays."""
+    base_t = _complete_tables(base)
+    cands = [t for t in (_complete_tables(o) for o in others) if t is not None]
+    if base_t is None or len(cands) < 2:
+        return base, 0
+    pool = [base_t, *cands]
+    support = [sum(table_agreement(pool[i], pool[j]) for j in range(len(pool)) if j != i) for i in range(len(pool))]
+    best = max(range(len(pool)), key=lambda i: (support[i], i == 0))
+    if best == 0:
+        return base, 0
+    return _put_tables(base, pool[best]), 1

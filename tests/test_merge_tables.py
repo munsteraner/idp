@@ -57,3 +57,36 @@ def test_sparse_swap_needs_fewer_cells_coverage_and_numeric_donor():
     form = f"<table><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr>{words}</table>"
     assert replace_sparse_page_tables(base, form)[1] == 0
     assert replace_sparse_page_tables(base, base)[1] == 0
+
+
+def test_swap_tables_replaces_all_or_keeps():
+    from idp.merge_tables import swap_tables
+
+    base = "x <table><tr><td>1</td></tr></table> y <table><tr><td>3</td></tr></table>"
+    donor = "<table><tr><td>1</td><td>2</td><td>3</td></tr></table>"
+    assert swap_tables(base, donor) == ("x " + donor + " y ", 1)
+    assert swap_tables(base, "no tables")[1] == 0
+    assert swap_tables(base, donor + "<table><tr><td>cut")[1] == 0  # donor left a table unfinished
+
+
+def test_vote_tables_replaces_only_an_outvoted_base():
+    from idp.merge_tables import table_agreement, vote_tables
+
+    merged = "x <table><tr><td>1<br/>2</td></tr></table> y"
+    split = "<table><tr><td>1</td><td>2</td></tr></table>"
+    other = "<table><tr><td>1</td><td>2</td><td>9</td></tr></table>"
+    assert table_agreement([split], [other]) == 0.8
+    assert vote_tables(merged, [split, other]) == ("x " + split + " y", 1)
+    assert vote_tables(split, [merged, other])[1] == 0  # the base agrees most
+    assert vote_tables(split, [other])[1] == 0  # needs two other candidates
+
+
+def test_merge_result_keeps_name_and_reads_donor_without_pages():
+    from idp.merge import merge_result
+
+    base = {"pipeline_name": "merge_v7_nosnap", "output": {"pipeline_name": "merge_v7_nosnap",
+            "pages": [{"page_index": 0, "markdown": "a <table><tr><td>1</td></tr></table>"}]}}
+    donor = {"output": {"pages": [], "markdown": "<table><tr><td>2</td></tr></table>"}}
+    merged, n = merge_result(base, donor, "v7_tinf", ["tables"], keep_name=True)
+    assert n["tables"] == 1 and merged["pipeline_name"] == "merge_v7_nosnap"
+    assert merged["output"]["markdown"] == "a <table><tr><td>2</td></tr></table>"
