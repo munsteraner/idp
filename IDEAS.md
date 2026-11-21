@@ -75,3 +75,21 @@ Numbers below: mean per-page score on dev (×100) from `runs/scores/page-scores-
 - **Method.** Offline evaluator: per-page official scores of the runs the vote produces when it picks each candidate (`takex` step: `v7n_take_infinity`, `v7n_take_chandra2`, `v7n_take_dots`, `v7n_take_kdl`, plus the base `route_charts_v7n`), and the cached pairwise agreements (`idp.agreement_cache`, `runs/features/agreement-v8-dev.jsonl`). A rule's dev score is then a lookup plus the harness's aggregation, seconds on a CPU. First check: the offline evaluator must reproduce `v8`'s dev score from `v8`'s own choices. Then search: simple parametric rules by hand, then LLM-driven evolutionary search (framework comparison running: OpenEvolve, ShinkaEvolve and others; mutation model an open LLM on PALMA, no paid APIs).
 - **Overfitting guard.** Search on dev pages labelled `dev`, select on the `screen` pages, count only after the sealed test split confirms (built with our own runs on test, as for `v8`).
 - **Status.** Building the evaluator (2026-11-21).
+
+## 12. Charts: keep KDL's chart structure, replace only values that other readers agree on
+
+- **Source.** Literature scout 2026-11-21 (`docs/literature.md`; "Self-Ensembling Vision-Language Models for Chart Data Extraction", arXiv 2605.27298). Whole-chart votes failed twice here (`v7_tvote5all`, `v8c_tmbr`/`v8c_pmbr`: KDL reads charts best and the consensus pulls away from it).
+- **Test.** On pages routed to KDL: align the other readers' chart tables (Chandra, Infinity, LightOnOCR merge) to KDL's grid by row and column labels; replace a KDL value only where at least two others agree on a different value (median within tolerance). CPU on cached outputs; dev, paired against `v8`.
+- **Status.** Open.
+
+## 13. Forms: checkbox states and filled values from the PDF's form fields
+
+- **Source.** Literature scout 2026-11-21 (LlamaIndex blog "Why VLMs can't read forms"; CommonForms). VLMs misread checkboxes; fillable PDFs carry the truth in AcroForm fields.
+- **Test.** First check whether the ParseBench 2 PDFs of `fillable_forms` and `forms` keep their form fields (PyMuPDF widgets). If they do: write field values and checkbox states into the markdown where the page's text places them. CPU only.
+- **Status.** Open; feasibility check first.
+
+## 14. Per-table choice inside the page vote, with structural plausibility as tie-breaker
+
+- **Source.** Literature scout 2026-11-21 (PrismAlign, EMNLP 2026 industry track). Overlaps `tmbr`, `pmbr`, ideas 2 and 6.
+- **Test.** After `pmbr` picks a page, vote again per table among the candidates' matching tables; break near-ties with simple plausibility checks (consistent column counts, numeric columns, totals). CPU.
+- **Status.** Open; lower priority than idea 11 (the offline evaluator can test it quickly).
