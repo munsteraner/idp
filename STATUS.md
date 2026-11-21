@@ -12,22 +12,11 @@ Last updated: 2026-11-21 (15:20).
 
 ## Best system so far
 
-`route_charts_v7`: **82.00 on the full set** (all 4,317 pages, the leaderboard's measure), +1.93 [+1.35, +2.54] over KDL-Frontier-Parser-nano-v2, the best published open-weight row (80.07, reproduced exactly on our setup). **82.58 on dev** against 78.77 for LightOnOCR-3 4B alone (+3.81); **81.12 on the sealed test split** against 77.20 (**+3.92 [+3.08, +4.82]**), so the gain holds on held-out documents; on test it is +1.75 [+0.67, +2.74] over KDL (79.37). Built from the parse cache (LightOnOCR-3 4B, KDL-Frontier-Parser-nano-v2, pymupdf4llm and the PDF text layer):
+`v8`: **84.82 on the full set** (all 4,317 pages, the leaderboard's measure; best published open-weight row 80.07), **84.00 on the sealed test split** (+2.89 [+2.24, +3.64] over `route_charts_v7`, +4.63 [+3.79, +5.52] over KDL), 85.37 on dev. `route_charts_v7n` plus a page vote: each page's markdown is taken from whichever of five parsers (the base, Infinity-Parser2 Pro, Chandra 2, dots.mocr, KDL; all our own runs) agrees most with the others under the benchmark's text and table metrics (minimum Bayes risk, no labels; `DECISIONS.md` 2026-11-21). Chart pages stay with KDL.
 
-1. `merge_v7_nosnap` (81.07 on dev): LightOnOCR's markdown with three merge steps, and KDL's layout items:
+Build: `jobs/merge_big.sh NAME=v8 BASE=route_charts_v7n KEEP_NAME=1 SKIP_SOURCE=kdl_frontier_nano_v2 DONOR=pymupdf4llm_noocr STEPS=pmbr "EXTRA_DONORS=runs/parse/infinity_parser2_pro_deep runs/parse/chandra2_vllm runs/parse/dots_ocr_1_5_parse runs/parse/kdl_frontier_nano_v2" FILL_MISSING=1` (test: `SPLIT=test TAG=test`, `runs/parse-test/` roots). `route_charts_v7n` = `merge_v7n` (`STEPS=decorf-trunc-sparse DONOR=pymupdf4llm_noocr LAYOUT_FROM=kdl_frontier_nano_v2`) + `route.sh RULE=charts`.
 
-   | Step | What it does | Gain on dev |
-   | --- | --- | --- |
-   | `decorf` | strikeout and underline from the text layer, exact and approximate placement | +1.03 overall, formatting +6.2 |
-   | `trunc` | tables LightOnOCR left unfinished at its output budget replaced by the text-layer table | +0.32, tables +2.09 |
-   | `sparse` | a page's tables swapped when LightOnOCR's hold far fewer cells (thresholds chosen on dev) | +0.14, tables +0.83; **not confirmed on test** (+0.15 [−0.04, +0.59]) |
-   | KDL layout | layout items from KDL instead of LightOnOCR (`--layout-from`) | +0.63, layout +3.80 |
-
-2. Router (`idp.route`): pages where LightOnOCR sees a chart go to KDL (AGPL-3.0 weights) whole: +1.56 [+0.76, +2.35], charts +8.99 (measured on top of `merge_v6`), +0.59 on top of the KDL layout.
-
-Build on dev: `jobs/merge.sh NAME=merge_v7_nosnap STEPS=decorf-trunc-sparse LAYOUT_FROM=kdl_frontier_nano_v2`, then `jobs/route.sh NAME=route_charts_v7 RULE=charts FIRST=merge_v7_nosnap`. `snap` (LightOnOCR boxes to PDF words, +1.09 layout) is superseded by KDL's layout and hurts KDL's boxes. Rejected: `corner`, larger output budget for truncated pages, block-count routing rules, table consensus (`DECISIONS.md`, `IDEAS.md`).
-
-Noise floor for changes that re-run a model: 0.42 overall, 1.85 tables, 0.89 charts, 1.17 forms. Merges from the same cached base run need only the paired interval.
+Previous best: `route_charts_v7` (82.00 full set, 81.12 test).
 
 ## In progress
 

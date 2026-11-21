@@ -385,3 +385,17 @@ Identical candidates vote once. Voters: the base, Infinity-Parser2 Pro, Chandra 
 - Rejected: the text layer as a voter (`v7_tvote6`), voting on chart pages (`v7_tvote5all`, charts −7.5).
 
 **Caveat.** Choices so far were made on dev, with several variants compared there, so the final system must be confirmed on the sealed test split with our own runs of all five voters.
+
+## 2026-11-21: Sealed test confirms `v8`; full set 84.82
+
+**System.** `v8` = `route_charts_v7n` (LightOnOCR-3 4B markdown with text-layer merges from `pymupdf4llm_noocr`, KDL layout, chart pages routed to KDL) + `pmbr` page vote among the base, Infinity-Parser2 Pro, Chandra 2, dots.mocr and KDL, all five from our own runs on PALMA; pages without a base result take the vote among the others (`--fill-missing`, decided before the test run; 4 test pages).
+
+| Split | `v8` | Text | Formatting | Tables | Charts | Layout | Forms | Paired difference |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Dev (2,583) | 85.37 | 89.74 | 87.57 | 90.49 | 74.58 | 89.06 | 80.80 | +2.67 [+2.13, +3.32] over `route_charts_v7n` |
+| Test (1,734) | **84.00** | 88.91 | 87.08 | 90.37 | 71.43 | 86.93 | 79.30 | **+2.89 [+2.24, +3.64]** over `route_charts_v7` (81.12); +4.63 [+3.79, +5.52] over KDL (79.37) |
+| All (4,317) | **84.82** | 89.41 | 87.37 | 90.44 | 73.32 | 88.21 | 80.20 | best published open-weight row 80.07 (KDL) |
+
+On test against `route_charts_v7`: text +5.91 [+3.90, +7.91], tables +9.86 [+7.40, +13.69], forms +1.73 [+0.16, +3.68], formatting −0.19, charts and layout unchanged. The gain on test (+2.89) equals the gain on dev (+2.79 over `route_charts_v7`), so the variants compared on dev did not overfit it.
+
+**Cost per page.** Five parsers instead of two: LightOnOCR-3 4B, KDL (1.2B), Chandra 2 (5.3B) and dots.mocr (3B) on RTX 4090s, Infinity-Parser2 Pro (35B MoE) on an H200, plus CPU for the vote (about 16 minutes on 32 cores per 2,583 pages). Measured inference times are in `results/parsebench2.tsv`.
