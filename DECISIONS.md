@@ -295,3 +295,28 @@ Both checks left open on 2026-11-20 had finished on PALMA (jobs 47844277, 478442
 - dots.mocr (`dots-studio/dots.mocr`, `7c53434c`): MIT plus the "dots.mocr LICENSE AGREEMENT", which forbids "unauthorized digitization of publications/document scanning or bulk scraping of content" and asks for permission before use on copyright-protected material. ParseBench 2 is a published benchmark dataset used here for evaluation only.
 
 **Remote code.** dots.mocr's image processor is custom (`DotsVLProcessor` through `auto_map`), so vLLM runs with `--trust-remote-code`, as the model card says. The revision is pinned; its three Python files (`configuration_dots.py`, `modeling_dots_ocr.py`, `modeling_dots_vision.py`, 612 lines) import only torch and transformers, with no network, subprocess or eval calls (read on 2026-11-21). Chandra 2 has no custom code.
+
+## 2026-11-21: Screening from published outputs: Infinity-Parser2 Pro and Chandra 2 raise the routing ceiling most
+
+**Method.** The dataset `llamaindex/ParseBench-2-results` (Apache-2.0, revision `75320d70`) publishes every leaderboard pipeline's per-page output in the harness's result format. `idp.import_published` (`jobs/import_published.sh`, jobs 47848543 to 47848547) writes them into `runs/parse-pub/<pipeline>/`, where our pinned scorer scores them on our pinned dataset and splits. This screens candidates without a GPU and without the custom servers MinerU and PaddleOCR need. It is screening only: systems are built from outputs we produce on PALMA (CLAUDE.md), and each candidate we adopt is run by us and compared with its published output.
+
+**The import is faithful.** The candidates' published outputs were produced on data revision `a12c9785`, with the same 4,317 documents as our `c300dcf`. Scored by us on all pages, they match the leaderboard rows: Infinity-Parser2 Pro 78.49 (leaderboard 78.41), Chandra 2 77.54 (77.45), MinerU2.5-Pro 76.89 (76.77); tables, charts and layout agree to the hundredth, forms within 0.53 (annotation changes between revisions). KDL's published markdown for a sample page is byte-identical to our own run.
+
+**Routing ceilings on dev** (`idp.oracle`, jobs 47848567 to 47848572; best of the pool per page and slot, chosen with the gold labels, so no real router reaches them; `route_charts_v7` alone scores 82.58):
+
+| Pool | Overall | Text | Formatting | Tables | Charts | Layout | Forms |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `route_charts_v7` alone | 82.58 | 84.50 | 87.39 | 79.76 | 74.26 | 89.06 | 80.53 |
+| + Infinity-Parser2 Pro | 87.37 | 89.53 | 88.87 | 90.95 | 80.11 | 91.53 | 83.21 |
+| + Chandra 2 | 87.28 | 88.05 | 92.87 | 89.97 | 78.40 | 90.07 | 84.34 |
+| + dots.mocr | 86.37 | 90.77 | 89.76 | 89.93 | 74.35 | 90.85 | 82.54 |
+| + MinerU2.5-Pro | 86.29 | 87.09 | 88.54 | 90.06 | 78.41 | 90.48 | 83.15 |
+| + PaddleOCR-VL 1.6 | 85.40 | 86.76 | 89.01 | 87.70 | 77.05 | 89.06 | 82.80 |
+| + all five | 90.92 | 93.03 | 94.27 | 95.45 | 84.06 | 92.60 | 86.14 |
+
+**Consequences.**
+
+- Run Infinity-Parser2 Pro ourselves despite its cost (one H200, `jobs/bench_vllm_h200.sh`): the highest ceiling, and the largest on tables (+11.2), our biggest gap. With all five, Infinity is the most frequent pick on dense tables and complex table headers.
+- Chandra 2 (formatting +5.5, tables +10.2) and dots.mocr (text +6.3) are already being screened on PALMA.
+- MinerU2.5-Pro and PaddleOCR-VL 1.6 add the least and need custom servers; they stay deferred.
+- Any second parser raises a best-of-two oracle through page-level variance alone, so the ceilings rank candidates; they do not promise gains. The next step is a parse-time rule, built on dev from these published outputs, then checked with our own runs.
