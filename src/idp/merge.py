@@ -203,6 +203,32 @@ def _merge_page(base_file: Path) -> tuple[bool, Counter]:
     return sum(n.values()) > 0, n
 
 
+def _fill_page(case: str, extras: list, a) -> int:
+    """Write the result of the --extra-donor candidate that agrees most with the others (``pmbr`` agreement)
+    for a page the base has no result for; returns 1 if a page was written."""
+    from idp.merge_text import page_agreement, vote_text
+
+    subset, name = case.split("/", 1)
+    results = []
+    for e_run, e_name in extras:
+        f = Path(e_run) / subset / e_name / subset / f"{name}.result.json"
+        if f.exists():
+            r = json.loads(f.read_text())
+            if ((r.get("output") or {}).get("markdown") or "").strip():
+                results.append(r)
+    if not results:
+        return 0
+    chosen = results[0]
+    if len(results) >= 3:
+        mds = [(r.get("output") or {}).get("markdown") or "" for r in results]
+        md, _ = vote_text(mds[0], mds[1:], agreement=page_agreement, with_tables=True)
+        chosen = results[mds.index(md)]
+    out_file = a.out_run / subset / a.name / subset / f"{name}.result.json"
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(json.dumps(chosen))
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("base")
@@ -219,6 +245,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--skip-source", action="append", default=[],
                    help="copy pages whose base result comes from this pipeline unchanged")
     p.add_argument("--workers", type=int, default=1, help="pages merged in parallel processes")
+    p.add_argument("--fill-missing", action="store_true",
+                   help="a page the base has no result for takes the vote among the --extra-donor results")
     p.add_argument("--split", choices=["screen", "dev", "test", "all"], default="dev",
                    help="write only the pages of this split (default dev: the test split stays sealed)")
     a = p.parse_args(argv)
@@ -254,6 +282,12 @@ def main(argv: list[str] | None = None) -> int:
         pages += 1
         changed += was_changed
         applied += n
+    if a.fill_missing:
+        done = {f"{f.parent.name}/{f.name[: -len('.result.json')]}" for f in files}
+        for case in sorted(keep - done):
+            n = _fill_page(case, extras, a)
+            pages += n
+            applied["filled"] += n
     print(f"{a.name} ({','.join(steps)}): {pages} pages written, {changed} changed, applied {dict(applied)}")
     return 0
 

@@ -143,3 +143,33 @@ def test_metric_agreement_falls_back_on_timeout(monkeypatch):
     a = ["<table><tr><td>1</td><td>2</td></tr></table>"]
     b = ["<table><tr><td>1</td></tr></table>"]
     assert metric_agreement(a, b, timeout=1) == table_agreement(a, b)
+
+
+def test_merge_fill_missing_takes_a_candidate(tmp_path, monkeypatch):
+    import json
+
+    import idp.merge_text as mx
+    from idp.merge import main
+
+    def overlap(a, b):
+        wa, wb = set(a.split()), set(b.split())
+        return len(wa & wb) / max(len(wa | wb), 1)
+
+    monkeypatch.setattr(mx, "page_agreement", overlap)
+
+    def write(run, name, case, md):
+        subset, page = case.split("/")
+        f = run / subset / name / subset / f"{page}.result.json"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps({"pipeline_name": name, "output": {"markdown": md}}))
+
+    write(tmp_path / "base", "b", "text/text_dense__de", "base page")
+    for i, md in enumerate(["x y z", "a b c", "a b c d"]):
+        write(tmp_path / f"e{i}", f"e{i}", "text/text_dense__legalRef", md)
+    args = [f"{tmp_path / 'base'}:b", f"{tmp_path / 'base'}:b", str(tmp_path / "out"), "m", "--steps", "pmbr",
+            "--split", "all", "--fill-missing", "--keep-name"]
+    for i in range(3):
+        args += ["--extra-donor", f"{tmp_path / f'e{i}'}:e{i}"]
+    assert main(args) == 0
+    filled = json.loads((tmp_path / "out/text/m/text/text_dense__legalRef.result.json").read_text())
+    assert filled["output"]["markdown"] in ("a b c", "a b c d") and filled["pipeline_name"] in ("e1", "e2")

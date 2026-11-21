@@ -13,6 +13,7 @@
 #        [LAYOUT_FROM=kdl_frontier_nano_v2 LAYOUT_ROOT=runs/parse]   layout items from another run
 #        [KEEP_NAME=1] [SKIP_SOURCE=kdl_frontier_nano_v2]   for a router as base (pages keep their source name)
 #        ["EXTRA_DONORS=runs/parse-pub/chandra2_vllm ..."]   further candidates for the tvote step (run paths)
+#        [FILL_MISSING=1]   pages the base has no result for take the vote among the EXTRA_DONORS
 #        [WORKERS=16]   pages in parallel processes (merge_big.sh: 32, for the slow tmbr step)
 # STEPS uses "-" between steps (the wrapper allows no commas).
 : "${SHA:?set SHA}" "${NAME:?set NAME}" "${STEPS:?set STEPS}"
@@ -28,7 +29,7 @@ source "$CODE/jobs/_bench.sh"
   ${OVERRIDE:+--override "$P/runs/parse/$OVERRIDE/parsebench-2:$OVERRIDE"} \
   ${LAYOUT_FROM:+--layout-from "$P/${LAYOUT_ROOT:-runs/parse}/$LAYOUT_FROM/parsebench-2:$LAYOUT_FROM"} \
   ${KEEP_NAME:+--keep-name} ${SKIP_SOURCE:+--skip-source "$SKIP_SOURCE"} "${EXTRA_ARGS[@]}" \
-  --workers "${WORKERS:-1}"
+  --workers "${WORKERS:-1}" ${FILL_MISSING:+--fill-missing}
 # SCORE=0 builds without scoring (test-split pieces of a system not yet confirmed stay unscored).
 if [ "${SCORE:-1}" != 0 ]; then
   bench_data
