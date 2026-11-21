@@ -31,15 +31,18 @@ Noise floor for changes that re-run a model: 0.42 overall, 1.85 tables, 0.89 cha
 
 ## In progress
 
-Running (submitted 2026-11-21 ~15:30; the user asked for autonomous research, scheduling jobs as needed):
+Autonomous research mode (user, 2026-11-21): keep researching, schedule jobs as needed. Current line: tables from stronger parsers, chosen per page by agreement (`IDEAS.md` idea 9).
 
-- Full runs for the table candidates, inference only: Infinity-Parser2 Pro on dev (job 47848885) and test (47848886, `TAG=test`), one H200 each; Chandra 2 on dev (47848887, `gpuexpress-zen4`) and test (47848888, `TAG=test`). Test outputs go to `runs/parse-test/` and stay unscored until a finished system is confirmed.
-- Table merges on dev from published outputs (`IDEAS.md` idea 9): `v7_tinf`, `v7_tchan`, `v7_tvote`, `v7_tvote4` (jobs 47848893 to 47848896); then `score_split` paired against `route_charts_v7`.
-- `pymupdf4llm_noocr` on all pages (`IDEAS.md` idea 7; jobs 47848898 to 47848900, three subset groups, `SCORE=0`); then rebuild `merge_v7_nosnap` and `route_charts_v7` on dev with it as donor.
+Done today on dev (published outputs as donors, paired against `route_charts_v7`, 82.58): cell-text vote `v7_tvote5` (voters base, Infinity, Chandra, dots.mocr, KDL) **83.87, +1.28 [+0.96, +1.65]**, tables +7.94, forms −0.78; without dots `v7_tvote4k` 83.62; the text layer as a sixth voter hurts; voting on chart pages hurts (rejected). Complete text-layer donor kept: `route_charts_v7n` +0.12 [+0.05, +0.20] (new base; built on test unscored in `runs/parse-test/route_charts_v7n`).
+
+Running:
+
+- `v7_tmbr5`, `v7_tmbr4k` (jobs 47849069, 47849070, `zen4`, 32 cores): the vote with the benchmark's table metric as agreement (minimum Bayes risk); compare with `v7_tvote5` / `v7_tvote4k`.
+- Our own runs of the voters: Infinity dev and test done (`runs/parse/`, `runs/parse-test/`, 1 failed page each); Chandra dev (47848887) and test (47848905) running; dots.mocr dev (47849105 tables, 47849106 other subsets) running, dots test still to submit (budget: 30 GPU-hours per day worst case).
+
+Next: choose vote method on dev (tvote vs tmbr), build it on `route_charts_v7n` with our own runs on dev (check it reproduces the published-output result), then build on test (`SCORE=0` pieces) and score the finished system once on test and on the full set.
 
 GPU limit raised to 4 at once until 2026-11-23 00:00 (`DECISIONS.md`); `requeue-gpu` allowed on its RTX 4090 nodes.
-
-Screening runs finished (2026-11-21, `SPLIT=screen`, outputs in `runs/parse/<pipeline>/`): Chandra 2 77.86, dots.mocr 63.15, Infinity-Parser2 Pro 78.48 (H200). Each reproduces its published outputs (paired difference within ±0.3 overall, intervals include zero). On tables they beat `route_charts_v7` (79.26 on screen): Infinity +8.42 [+4.08, +10.86], Chandra +6.82 [+2.04, +9.21], dots +2.50 (interval includes zero).
 
 ## Results so far
 
