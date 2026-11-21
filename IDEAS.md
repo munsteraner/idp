@@ -56,3 +56,9 @@ Numbers below: mean per-page score on dev (×100) from `runs/scores/page-scores-
 - **Hypothesis.** LightOnOCR has no result on 4 pages (all in the test split): 3 empty responses, and `dense_table_155`, an encrypted PDF the first job environment could not open (`cryptography` was missing; today's lock has it). These count as failures in every score, including the full-set 82.00 of `route_charts_v7`. Taking KDL's page where the base has none is a rule seen at parse time with no parameters.
 - **Test.** `idp.route` with a fallback to the second system when the first has no result; at most 4 pages on the full set, so worth at most about 0.1 point. Re-run `dense_table_155` with LightOnOCR in the current environment.
 - **Status.** Open; small.
+
+## 9. Tables from Infinity-Parser2 Pro and Chandra 2
+
+- **Hypothesis.** On dev table pages, the published Infinity outputs beat `route_charts_v7` on every table subset (complex headers 75.0 against 66.1, dense 82.6 against 72.1, financial 90.0 against 84.5, insurance 87.1 against 79.5, tables 90.0 against 84.0), Chandra's likewise. Replacing our tables with theirs raises tables. Risks: forms pages (form grids that LightOnOCR reads better), chart pages (Infinity's charts are weak), and text pages with tables.
+- **Test.** Merge steps on top of `route_charts_v7`, pages routed to KDL for charts left alone, donors from the published outputs (`runs/parse-pub/`; our own runs reproduce them): `tables` (all tables from one donor: `v7_tinf`, `v7_tchan`) and `tvote` (the page's tables from whichever of base, Infinity and Chandra agrees most with the others: `v7_tvote`; with dots.mocr as a fourth voter: `v7_tvote4`). Dev, paired against `route_charts_v7`. Then the same with our own runs as donors, then test.
+- **Status.** Running (2026-11-21).

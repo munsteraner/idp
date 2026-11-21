@@ -31,7 +31,13 @@ Noise floor for changes that re-run a model: 0.42 overall, 1.85 tables, 0.89 cha
 
 ## In progress
 
-Nothing is running. GPU limit raised to 4 at once until 2026-11-23 00:00 (`DECISIONS.md`); `requeue-gpu` allowed on its RTX 4090 nodes.
+Running (submitted 2026-11-21 ~15:30; the user asked for autonomous research, scheduling jobs as needed):
+
+- Full runs for the table candidates, inference only: Infinity-Parser2 Pro on dev (job 47848885) and test (47848886, `TAG=test`), one H200 each; Chandra 2 on dev (47848887, `gpuexpress-zen4`) and test (47848888, `TAG=test`). Test outputs go to `runs/parse-test/` and stay unscored until a finished system is confirmed.
+- Table merges on dev from published outputs (`IDEAS.md` idea 9): `v7_tinf`, `v7_tchan`, `v7_tvote`, `v7_tvote4` (jobs 47848893 to 47848896); then `score_split` paired against `route_charts_v7`.
+- `pymupdf4llm_noocr` on all pages (`IDEAS.md` idea 7; jobs 47848898 to 47848900, three subset groups, `SCORE=0`); then rebuild `merge_v7_nosnap` and `route_charts_v7` on dev with it as donor.
+
+GPU limit raised to 4 at once until 2026-11-23 00:00 (`DECISIONS.md`); `requeue-gpu` allowed on its RTX 4090 nodes.
 
 Screening runs finished (2026-11-21, `SPLIT=screen`, outputs in `runs/parse/<pipeline>/`): Chandra 2 77.86, dots.mocr 63.15, Infinity-Parser2 Pro 78.48 (H200). Each reproduces its published outputs (paired difference within ±0.3 overall, intervals include zero). On tables they beat `route_charts_v7` (79.26 on screen): Infinity +8.42 [+4.08, +10.86], Chandra +6.82 [+2.04, +9.21], dots +2.50 (interval includes zero).
 
