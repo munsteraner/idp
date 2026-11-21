@@ -59,5 +59,19 @@ def _register_variants() -> None:
         )
     )
 
+    # pymupdf4llm_markdown asks for OCR through RapidOCR, which our environment lacks (the harness's
+    # pymupdf4llm extra is not installed), so every page where pymupdf4llm wants OCR fails: 790 of 4,317
+    # (IDEAS.md idea 7). The same settings without OCR return the text layer on every page; pages that
+    # never triggered OCR come out the same.
+    p4 = get_pipeline("pymupdf4llm_markdown")
+    register_pipeline(
+        PipelineSpec(
+            pipeline_name="pymupdf4llm_noocr",
+            provider_name=p4.provider_name,
+            product_type=p4.product_type,
+            config={**{k: v for k, v in p4.config.items() if not k.startswith("ocr_")}, "use_ocr": False},
+        )
+    )
+
 
 _register_variants()
