@@ -90,3 +90,29 @@ def test_merge_result_keeps_name_and_reads_donor_without_pages():
     merged, n = merge_result(base, donor, "v7_tinf", ["tables"], keep_name=True)
     assert n["tables"] == 1 and merged["pipeline_name"] == "merge_v7_nosnap"
     assert merged["output"]["markdown"] == "a <table><tr><td>2</td></tr></table>"
+
+
+def test_merge_main_parallel_tmbr(tmp_path):
+    import json
+
+    from idp.merge import main
+
+    def write(run, name, case, md):
+        subset, page = case.split("/")
+        f = run / subset / name / subset / f"{page}.result.json"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps({"pipeline_name": name, "output": {"pipeline_name": name,
+                                 "pages": [{"page_index": 0, "markdown": md}], "markdown": md}}))
+
+    cases = ["text/text_dense__de", "text/text_dense__legalRef"]
+    good = "<table><tr><th>Year</th><th>Sales</th></tr><tr><td>2024</td><td>10</td></tr></table>"
+    bad = "<table><tr><th>Year Sales</th></tr><tr><td>2024 10</td></tr></table>"
+    for case in cases:
+        write(tmp_path / "base", "b", case, "x " + bad)
+        write(tmp_path / "d1", "d1", case, good)
+        write(tmp_path / "d2", "d2", case, good)
+    rc = main([f"{tmp_path / 'base'}:b", f"{tmp_path / 'd1'}:d1", str(tmp_path / "out"), "m", "--steps", "tmbr",
+               "--extra-donor", f"{tmp_path / 'd2'}:d2", "--split", "all", "--workers", "2"])
+    assert rc == 0
+    out = json.loads((tmp_path / "out/text/m/text/text_dense__de.result.json").read_text())
+    assert out["output"]["markdown"] == "x " + good

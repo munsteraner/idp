@@ -10,6 +10,8 @@ Steps (each uses only the two parse outputs, no labels):
   tables all of a page's complete tables replaced by the donor's (a stronger table parser as donor)
   tvote  the page's tables taken from whichever of base, donor and --extra-donor runs agrees most with
          the others (cell-text agreement, ``idp.merge_tables.vote_tables``); the base stays on a tie
+  tmbr   the same choice with the benchmark's own table metric as agreement between candidates
+         (minimum Bayes risk selection; no labels; slow, use --workers)
 
 The merged outputs are written as a new pipeline in the harness results layout (base layout boxes kept),
 so the official scorer scores them like any other run. Register the pipeline name in
@@ -40,13 +42,14 @@ from idp.merge_decorations import merge as apply_decor
 from idp.merge_tables import (
     fix_corner_cells,
     fix_truncated_table,
+    metric_agreement,
     replace_sparse_page_tables,
     swap_tables,
     unfinished_table_start,
     vote_tables,
 )
 
-STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap", "tables", "tvote")
+STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap", "tables", "tvote", "tmbr")
 
 
 def merge_markdown(
@@ -60,6 +63,9 @@ def merge_markdown(
     if "tvote" in steps:
         out, n = vote_tables(out, [donor, *(others or [])])
         applied["tvote"] += n
+    if "tmbr" in steps:
+        out, n = vote_tables(out, [donor, *(others or [])], agreement=metric_agreement)
+        applied["tmbr"] += n
     if "trunc" in steps:
         out, n = fix_truncated_table(out, donor)
         applied["trunc"] += n
@@ -120,6 +126,65 @@ def merge_result(
     return result, applied
 
 
+_CFG: dict = {}
+
+
+def _init_worker(cfg: dict) -> None:
+    _CFG.clear()
+    _CFG.update(cfg)
+
+
+def _merge_page(base_file: Path) -> tuple[bool, Counter]:
+    """Merge one page and write it; returns (changed, applied steps)."""
+    a, steps = _CFG["a"], _CFG["steps"]
+    donor_run, donor_name = _CFG["donor"]
+    override_run, override_name = _CFG["override"]
+    layout_run, layout_name = _CFG["layout"]
+    subset = base_file.parent.name
+    out_file = a.out_run / subset / a.name / subset / base_file.name
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    donor_file = Path(donor_run) / subset / donor_name / subset / base_file.name
+    donor = json.loads(donor_file.read_text()) if donor_file.exists() else None
+    base = json.loads(base_file.read_text())
+    n: Counter = Counter()
+    if override_run:
+        o_file = Path(override_run) / subset / override_name / subset / base_file.name
+        if o_file.exists():
+            o = json.loads(o_file.read_text())
+            o_md = (o.get("output") or {}).get("markdown") or ""
+            if o_md.strip() and unfinished_table_start(o_md) is None:
+                base = o
+                n["override"] += 1
+    if base.get("pipeline_name") in a.skip_source:
+        out_file.write_text(json.dumps(base))
+        return False, Counter({"skipped": 1})
+    others = []
+    for e_run, e_name in _CFG["extras"]:
+        e_file = Path(e_run) / subset / e_name / subset / base_file.name
+        others.append(json.loads(e_file.read_text()) if e_file.exists() else None)
+    merged, m = merge_result(base, donor, a.name, steps, a.min_chars, others, a.keep_name)
+    n += m
+    if layout_run:
+        from idp.merge_layout import transplant_layout
+
+        l_file = Path(layout_run) / subset / layout_name / subset / base_file.name
+        target = (merged.get("output") or {}).get("layout_pages")
+        if l_file.exists() and target:
+            source = (json.loads(l_file.read_text()).get("output") or {}).get("layout_pages") or []
+            if transplant_layout(target, source):
+                n["layout"] += 1
+    if "snap" in steps and a.data_dir is not None:
+        from idp.merge_layout import pdf_words, snap_layout_pages
+
+        pdf = a.data_dir / subset / f"{base_file.name[: -len('.result.json')]}.pdf"
+        words = pdf_words(pdf) if pdf.exists() else None
+        layout = (merged.get("output") or {}).get("layout_pages")
+        if words and layout:
+            n["snap"] += snap_layout_pages(layout, words)
+    out_file.write_text(json.dumps(merged))
+    return sum(n.values()) > 0, n
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("base")
@@ -135,6 +200,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--keep-name", action="store_true", help="pages keep their own pipeline_name")
     p.add_argument("--skip-source", action="append", default=[],
                    help="copy pages whose base result comes from this pipeline unchanged")
+    p.add_argument("--workers", type=int, default=1, help="pages merged in parallel processes")
     p.add_argument("--split", choices=["screen", "dev", "test", "all"], default="dev",
                    help="write only the pages of this split (default dev: the test split stays sealed)")
     a = p.parse_args(argv)
@@ -152,57 +218,23 @@ def main(argv: list[str] | None = None) -> int:
     override_run, override_name = a.override.rsplit(":", 1) if a.override else (None, None)
     layout_run, layout_name = a.layout_from.rsplit(":", 1) if a.layout_from else (None, None)
     extras = [e.rsplit(":", 1) for e in a.extra_donor]
+    files = [f for f in sorted(Path(base_run).glob(f"*/{base_name}/*/*.result.json"))
+             if f"{f.parent.name}/{f.name[: -len('.result.json')]}" in keep]
+    cfg = {"a": a, "steps": steps, "donor": (donor_run, donor_name), "override": (override_run, override_name),
+           "layout": (layout_run, layout_name), "extras": extras}
     pages = changed = 0
     applied: Counter = Counter()
-    for base_file in sorted(Path(base_run).glob(f"*/{base_name}/*/*.result.json")):
-        subset = base_file.parent.name
-        if f"{subset}/{base_file.name[: -len('.result.json')]}" not in keep:
-            continue
-        donor_file = Path(donor_run) / subset / donor_name / subset / base_file.name
-        donor = json.loads(donor_file.read_text()) if donor_file.exists() else None
-        base = json.loads(base_file.read_text())
-        if override_run:
-            o_file = Path(override_run) / subset / override_name / subset / base_file.name
-            if o_file.exists():
-                o = json.loads(o_file.read_text())
-                o_md = (o.get("output") or {}).get("markdown") or ""
-                if o_md.strip() and unfinished_table_start(o_md) is None:
-                    base = o
-                    applied["override"] += 1
-        if base.get("pipeline_name") in a.skip_source:
-            out_file = a.out_run / subset / a.name / subset / base_file.name
-            out_file.parent.mkdir(parents=True, exist_ok=True)
-            out_file.write_text(json.dumps(base))
-            pages += 1
-            applied["skipped"] += 1
-            continue
-        others = []
-        for e_run, e_name in extras:
-            e_file = Path(e_run) / subset / e_name / subset / base_file.name
-            others.append(json.loads(e_file.read_text()) if e_file.exists() else None)
-        merged, n = merge_result(base, donor, a.name, steps, a.min_chars, others, a.keep_name)
-        if layout_run:
-            from idp.merge_layout import transplant_layout
+    if a.workers > 1:
+        from concurrent.futures import ProcessPoolExecutor
 
-            l_file = Path(layout_run) / subset / layout_name / subset / base_file.name
-            target = (merged.get("output") or {}).get("layout_pages")
-            if l_file.exists() and target:
-                source = (json.loads(l_file.read_text()).get("output") or {}).get("layout_pages") or []
-                if transplant_layout(target, source):
-                    n["layout"] += 1
-        if "snap" in steps and a.data_dir is not None:
-            from idp.merge_layout import pdf_words, snap_layout_pages
-
-            pdf = a.data_dir / subset / f"{base_file.name[: -len('.result.json')]}.pdf"
-            words = pdf_words(pdf) if pdf.exists() else None
-            layout = (merged.get("output") or {}).get("layout_pages")
-            if words and layout:
-                n["snap"] += snap_layout_pages(layout, words)
-        out_file = a.out_run / subset / a.name / subset / base_file.name
-        out_file.parent.mkdir(parents=True, exist_ok=True)
-        out_file.write_text(json.dumps(merged))
+        with ProcessPoolExecutor(a.workers, initializer=_init_worker, initargs=(cfg,)) as pool:
+            results = list(pool.map(_merge_page, files, chunksize=4))
+    else:
+        _init_worker(cfg)
+        results = [_merge_page(f) for f in files]
+    for was_changed, n in results:
         pages += 1
-        changed += sum(n.values()) > 0
+        changed += was_changed
         applied += n
     print(f"{a.name} ({','.join(steps)}): {pages} pages written, {changed} changed, applied {dict(applied)}")
     return 0

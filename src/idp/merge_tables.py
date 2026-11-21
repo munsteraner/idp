@@ -229,16 +229,30 @@ def table_agreement(a: list[str], b: list[str]) -> float:
     return 2 * common / (na + nb)
 
 
-def vote_tables(base: str, others: list[str]) -> tuple[str, int]:
+def metric_agreement(a: list[str], b: list[str], max_chars: int = 200_000) -> float:
+    """Agreement of two table sets under the benchmark's own table metric (``table_next``), each side taken as
+    the reference for the other and the two scores averaged. No labels: only two parser outputs are compared,
+    which makes the vote a minimum Bayes risk choice. Pairs above ``max_chars`` fall back to the cell-text
+    agreement (the metric's assignment search gets slow on very long tables)."""
+    ma, mb = "\n\n".join(a), "\n\n".join(b)
+    if len(ma) + len(mb) > max_chars:
+        return table_agreement(a, b)
+    from parse_bench.evaluation.metrics.parse.table_next import score_table_next
+
+    return (score_table_next(ma, mb).score + score_table_next(mb, ma).score) / 2
+
+
+def vote_tables(base: str, others: list[str], agreement=table_agreement) -> tuple[str, int]:
     """Choose the page's tables by agreement: the candidate (base or one of ``others``) whose tables agree
-    most with all the other candidates' (summed ``table_agreement``) replaces the base tables. Needs complete
-    tables in the base and in at least two others; on a tie the base stays."""
+    most with all the other candidates' (summed ``agreement``, cell-text F1 by default) replaces the base
+    tables. Needs complete tables in the base and in at least two others; on a tie the base stays."""
     base_t = _complete_tables(base)
     cands = [t for t in (_complete_tables(o) for o in others) if t is not None]
     if base_t is None or len(cands) < 2:
         return base, 0
     pool = [base_t, *cands]
-    support = [sum(table_agreement(pool[i], pool[j]) for j in range(len(pool)) if j != i) for i in range(len(pool))]
+    pair = {(i, j): agreement(pool[i], pool[j]) for i in range(len(pool)) for j in range(i + 1, len(pool))}
+    support = [sum(pair[min(i, j), max(i, j)] for j in range(len(pool)) if j != i) for i in range(len(pool))]
     best = max(range(len(pool)), key=lambda i: (support[i], i == 0))
     if best == 0:
         return base, 0

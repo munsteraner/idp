@@ -13,6 +13,7 @@
 #        [LAYOUT_FROM=kdl_frontier_nano_v2 LAYOUT_ROOT=runs/parse]   layout items from another run
 #        [KEEP_NAME=1] [SKIP_SOURCE=kdl_frontier_nano_v2]   for a router as base (pages keep their source name)
 #        ["EXTRA_DONORS=runs/parse-pub/chandra2_vllm ..."]   further candidates for the tvote step (run paths)
+#        [WORKERS=16]   pages in parallel processes (merge_normal.sh: 32, for the slow tmbr step)
 # STEPS uses "-" between steps (the wrapper allows no commas).
 : "${SHA:?set SHA}" "${NAME:?set NAME}" "${STEPS:?set STEPS}"
 source "/scratch/tmp/$USER/idp/code/$SHA/jobs/_env.sh"
@@ -26,6 +27,7 @@ source "$CODE/jobs/_bench.sh"
   --data-dir "$P/work/data_parsebench-2" \
   ${OVERRIDE:+--override "$P/runs/parse/$OVERRIDE/parsebench-2:$OVERRIDE"} \
   ${LAYOUT_FROM:+--layout-from "$P/${LAYOUT_ROOT:-runs/parse}/$LAYOUT_FROM/parsebench-2:$LAYOUT_FROM"} \
-  ${KEEP_NAME:+--keep-name} ${SKIP_SOURCE:+--skip-source "$SKIP_SOURCE"} "${EXTRA_ARGS[@]}"
+  ${KEEP_NAME:+--keep-name} ${SKIP_SOURCE:+--skip-source "$SKIP_SOURCE"} "${EXTRA_ARGS[@]}" \
+  --workers "${WORKERS:-1}"
 bench_data
 bench_score
