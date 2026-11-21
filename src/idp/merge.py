@@ -52,7 +52,7 @@ from idp.merge_tables import (
     vote_tables,
 )
 
-STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap", "tables", "tvote", "tmbr", "xmbr")
+STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap", "tables", "tvote", "tmbr", "xmbr", "xmbra")
 
 
 def merge_markdown(
@@ -69,13 +69,14 @@ def merge_markdown(
     if "tmbr" in steps:
         out, n = vote_tables(out, [donor, *(others or [])], agreement=metric_agreement)
         applied["tmbr"] += n
-    if "xmbr" in steps:
-        from idp.merge_text import vote_text
+    for step in ("xmbr", "xmbra"):
+        if step in steps:
+            from idp.merge_text import vote_text
 
-        chosen, n = vote_text(out, others or [])
-        if n:
-            out, _ = apply_decor(chosen, donor_spans(donor), min_chars, fuzzy=90)
-        applied["xmbr"] += n
+            chosen, n = vote_text(out, others or [], with_tables=step == "xmbra")
+            if n:
+                out, _ = apply_decor(chosen, donor_spans(donor), min_chars, fuzzy=90)
+            applied[step] += n
     if "trunc" in steps:
         out, n = fix_truncated_table(out, donor)
         applied["trunc"] += n

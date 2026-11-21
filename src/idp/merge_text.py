@@ -25,10 +25,11 @@ def text_agreement(a: str, b: str, timeout: int = 60) -> float:
         return 0.0
 
 
-def vote_text(base: str, others: list[str], agreement=text_agreement) -> tuple[str, int]:
+def vote_text(base: str, others: list[str], agreement=text_agreement, with_tables: bool = False) -> tuple[str, int]:
     """The candidate (base or one of ``others``) with the highest summed agreement with the rest; the base
-    stays on a tie, on pages with tables, and when fewer than two distinct non-empty other candidates exist."""
-    if not base.strip() or _TABLE_OPEN.search(base):
+    stays on a tie, on pages with tables (unless ``with_tables``), and when fewer than two distinct non-empty
+    other candidates exist."""
+    if not base.strip() or (_TABLE_OPEN.search(base) and not with_tables):
         return base, 0
     cands: list[str] = []
     for o in others:
