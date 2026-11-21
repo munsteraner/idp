@@ -350,3 +350,38 @@ Both checks left open on 2026-11-20 had finished on PALMA (jobs 47844277, 478442
 **Test.** `v7_tvote5all`: the cell-text table vote of `v7_tvote5` applied to every page, including the pages `route_charts_v7` sends to KDL for charts (voters base, Infinity, Chandra, dots.mocr, KDL, `merge_v7_nosnap`; identical candidates vote once, so a router's base page does not vote for itself).
 
 **Result** on dev: charts 74.57 → **67.10**, every other dimension identical to `v7_tvote5` (overall 82.62 against 83.87). Charts are scored from the chart data a parser writes as tables, and KDL reads chart data best (charts 78.3 on screen against 53.8 for Infinity and 62.5 for Chandra), so a consensus pulls away from the best reader. The table vote keeps skipping pages routed to KDL.
+
+## 2026-11-21: Kept on dev: each page's content chosen by agreement among five parsers (`pmbr`)
+
+**Idea.** Five parsers fail on different pages. For each page, take the candidate output (whole-page markdown) that agrees most with the other candidates, measured with the benchmark's own metrics: minimum Bayes risk selection. No labels are used; only parser outputs are compared with each other. The benchmark's scorer is called as a library function between two outputs and is not changed.
+
+**Steps** (`idp.merge_tables`, `idp.merge_text`, `idp.merge`), all on top of a base whose chart pages (routed to KDL) are left alone:
+
+- `tvote`: the page's tables from the candidate with the highest summed cell-text agreement (F1 of normalised cell texts).
+- `tmbr`: the same with the table metric (`table_next`, each side taken as the reference for the other, averaged) as agreement; 60 s limit per comparison, cell-text agreement as fallback (a fillable form page ran for over an hour without it).
+- `xmbr` / `xmbra`: the whole page markdown from the candidate with the highest summed text-metric agreement (`text_next`), on pages without tables / on every page; strikeout and underline are re-transferred from the text layer onto a chosen candidate.
+- `pmbr`: as `xmbra`, with agreement = text metric averaged with the table metric between the pages' tables when they have any (a page without tables against one with tables scores 0 on that half). The page type, and so the metric a page is scored with, is unknown at parse time; this mixes the two.
+
+Identical candidates vote once. Voters: the base, Infinity-Parser2 Pro, Chandra 2, dots.mocr, KDL.
+
+**Results on dev** (2,583 pages; first with published outputs as voters, then with our own runs; paired cluster bootstrap):
+
+| System | Base | Voters | Overall | Paired against base | Text | Tables | Forms |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `v7_tvote5` | `route_charts_v7` (82.58) | published | 83.87 | +1.28 [+0.96, +1.65] | 84.56 | 87.71 | 79.75 |
+| `v7n_tvote4k` | `route_charts_v7n` (82.70) | own, no dots | 83.80 | +1.10 [+0.79, +1.48] | 84.51 | 87.29 | 79.03 |
+| `v7n_tmbr4k` | `route_charts_v7n` | own, no dots | 84.18 | | 84.44 | 89.45 | 79.28 |
+| `v7n_xmbr` | `route_charts_v7n` | own + published dots | 83.47 | +0.77 [+0.38, +1.20] | 89.34 | 79.71 | 80.70 |
+| `v7n_xall` | `route_charts_v7n` | own + published dots | 84.89 | +2.19 [+1.69, +2.81] | 89.68 | 87.91 | 80.80 |
+| `v7n_pall` | `route_charts_v7n` | own + published dots | **85.33** | **+2.63 [+2.11, +3.26]** | 89.62 | 90.36 | 80.72 |
+| `v7n_pall7` | `route_charts_v7n` | + MinerU, PaddleOCR (published) | 85.11 | | 89.68 | 90.53 | 79.08 |
+
+**Findings.**
+
+- The table metric is a better agreement measure for tables than cell texts (89.45 against 87.29): it sees header structure.
+- The whole-page text vote beats table votes chained with it (84.89 against 84.57), because it keeps forms (80.80 against 79.22) and still judges table pages well; mixing in the table metric (`pmbr`) adds tables (90.36) without losing forms.
+- `v7n_pall` per dimension against its base: text +5.14 [+3.47, +7.13], tables +10.65 [+8.95, +12.58], charts +0.32, formatting −0.55 [−1.58, +0.52], forms +0.20 [−0.86, +1.31], layout unchanged (layout comes from KDL's boxes and is not voted on).
+- More voters are not better: adding MinerU2.5-Pro and PaddleOCR-VL 1.6 (published outputs) lowers forms; their custom servers are not worth building for this.
+- Rejected: the text layer as a voter (`v7_tvote6`), voting on chart pages (`v7_tvote5all`, charts −7.5).
+
+**Caveat.** Choices so far were made on dev, with several variants compared there, so the final system must be confirmed on the sealed test split with our own runs of all five voters.
