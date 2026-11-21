@@ -31,6 +31,7 @@ MERGES: dict[str, str] = {
     "merge_v7": "lightonocr3",
     "merge_nosparse": "lightonocr3",
     "merge_v7_nosnap": "lightonocr3",
+    "merge_v7n": "lightonocr3",  # merge_v7_nosnap with pymupdf4llm_noocr as donor (IDEAS.md idea 7)
 }
 
 
