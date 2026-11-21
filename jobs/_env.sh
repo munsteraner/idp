@@ -9,7 +9,8 @@ P=/scratch/tmp/$USER/idp
 CODE=$P/code/$SHA
 export UV_CACHE_DIR=$P/cache/uv UV_PYTHON_INSTALL_DIR=$P/cache/python
 export HF_HOME=$P/cache/hf HF_HUB_DISABLE_TELEMETRY=1
-ENVDIR=$P/envs/$(sha256sum "$CODE/uv.lock" | cut -c1-12)
+# ENV_GROUPS (space-separated, optional): extra dependency groups, installed into a separate environment.
+ENVDIR=$P/envs/$(sha256sum "$CODE/uv.lock" | cut -c1-12)${ENV_GROUPS:+-${ENV_GROUPS// /-}}
 export UV_PROJECT_ENVIRONMENT=$ENVDIR
 export PATH=$P/bin:$PATH
 
@@ -44,7 +45,9 @@ if ! command -v uv >/dev/null; then
 fi
 # One environment per lock file, shared by all snapshots; the project itself
 # comes from the snapshot through PYTHONPATH.
-flock "$P/envs.lock" uv sync --project "$CODE" --frozen --no-install-project --no-dev
+GROUP_ARGS=()
+for g in ${ENV_GROUPS:-}; do GROUP_ARGS+=(--group "$g"); done
+flock "$P/envs.lock" uv sync --project "$CODE" --frozen --no-install-project --no-dev "${GROUP_ARGS[@]}"
 export PYTHONPATH=$CODE/src
 PY=$ENVDIR/bin/python
 mkdir -p "$P/work"

@@ -14,6 +14,7 @@
 # are skipped on a rerun, so a timeout loses nothing. Two jobs with disjoint
 # SUBSETS halve the wall-clock time at the same GPU-hours.
 : "${SHA:?set SHA}" "${PIPELINE:?set PIPELINE}"
+case "$PIPELINE" in infinity_parser2_*) export ENV_GROUPS=infinity ;; esac  # provider imports the SDK
 source "/scratch/tmp/$USER/idp/code/$SHA/jobs/_env.sh"
 source "$CODE/jobs/_bench.sh"
 bench_data
@@ -58,6 +59,20 @@ case "$PIPELINE" in
     FLAGS=(--trust-remote-code --chat-template-content-format string --gpu-memory-utilization 0.9
            --max-model-len 32768 --limit-mm-per-prompt '{"image": 1}')
     ;;
+  infinity_parser2_pro_deep)
+    # Infinity-Parser2 Pro (35B MoE, 70 GB in BF16, Apache-2.0), the leaderboard's row: one H200
+    # (bench_vllm_h200.sh); it does not fit an RTX 4090. The provider imports the infinity-parser2 SDK
+    # (ENV_GROUPS=infinity above). Flags from the INF-MLLM guide's vllm-server section, for one GPU: the
+    # chat template opens a <think> block unless enable_thinking is false, and the SDK sends no template
+    # kwargs, so without it pages come back empty. The SDK wants the full chat/completions URL and pings
+    # the server with model infly/Infinity-Parser2-Pro. 300 dpi pages are 8k to 16k image tokens plus
+    # 32,768 output tokens. No custom code in the repo.
+    MODEL=infly/Infinity-Parser2-Pro REV=0ba1aa86bdc4a81022e2a18ab7cad4750d698562
+    SERVED=infly/Infinity-Parser2-Pro URL_ENV=INFINITY_PARSER2_API_URL URL_SUFFIX=/v1/chat/completions
+    FLAGS=(--default-chat-template-kwargs '{"enable_thinking": false}' --chat-template-content-format openai
+           --gpu-memory-utilization 0.90 --max-model-len 65536 --max-num-batched-tokens 32768
+           --max-num-seqs 32 --enable-prefix-caching --limit-mm-per-prompt '{"image": 1}')
+    ;;
   *) echo "no vLLM settings for $PIPELINE" >&2; exit 2 ;;
 esac
 SIF=$P/images/vllm-v0.34.0.sif
@@ -75,12 +90,12 @@ PYTHONPATH= apptainer exec --nv --bind "$P" "$SIF" vllm serve "$MODEL" --revisio
 VLLM=$!
 trap 'kill $VLLM 2>/dev/null; wait $VLLM 2>/dev/null || true' EXIT
 
-for _ in $(seq 180); do
+for _ in $(seq 360); do  # up to 30 min: a 70 GB model loads slowly from GPFS
   curl -sf "http://127.0.0.1:$PORT/health" >/dev/null && break
   kill -0 $VLLM 2>/dev/null || { echo "vLLM exited during startup"; tail -50 "$LOG"; exit 1; }
   sleep 5
 done
-curl -sf "http://127.0.0.1:$PORT/health" >/dev/null || { echo "vLLM not healthy after 15 min"; tail -50 "$LOG"; exit 1; }
+curl -sf "http://127.0.0.1:$PORT/health" >/dev/null || { echo "vLLM not healthy after 30 min"; tail -50 "$LOG"; exit 1; }
 echo "vLLM up on port $PORT after $SECONDS s"
 export "$URL_ENV=http://127.0.0.1:$PORT${URL_SUFFIX:-}"
 

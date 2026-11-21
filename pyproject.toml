@@ -24,6 +24,9 @@ bench = [
 # Classical parsers the harness runs locally (Tesseract needs its binary, installed by jobs/_env.sh).
 parsers = ["pytesseract>=0.3.10", "markitdown[pdf]>=0.1", "docling-core>=2", "unstructured-client>=0.30"]
 dev = ["pytest>=8", "ruff>=0.14"]
+# Infinity-Parser2 SDK, needed only by the infinity_parser2 provider. Not a default group: jobs that need it
+# set ENV_GROUPS=infinity and get their own environment (jobs/_env.sh), so the scorer's environment is unchanged.
+infinity = ["infinity-parser2==0.4.0"]
 
 [tool.uv]
 default-groups = ["bench", "parsers", "dev"]
