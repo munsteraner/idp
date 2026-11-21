@@ -245,9 +245,14 @@ def metric_agreement(a: list[str], b: list[str], max_chars: int = 200_000) -> fl
 def vote_tables(base: str, others: list[str], agreement=table_agreement) -> tuple[str, int]:
     """Choose the page's tables by agreement: the candidate (base or one of ``others``) whose tables agree
     most with all the other candidates' (summed ``agreement``, cell-text F1 by default) replaces the base
-    tables. Needs complete tables in the base and in at least two others; on a tie the base stays."""
+    tables. Candidates identical to the base or to an earlier candidate are dropped (a router's base page is
+    also one of the voters). Needs complete tables in the base and in at least two other distinct candidates;
+    on a tie the base stays."""
     base_t = _complete_tables(base)
-    cands = [t for t in (_complete_tables(o) for o in others) if t is not None]
+    cands: list[list[str]] = []
+    for t in (_complete_tables(o) for o in others):
+        if t is not None and t != base_t and t not in cands:  # an identical source does not vote twice
+            cands.append(t)
     if base_t is None or len(cands) < 2:
         return base, 0
     pool = [base_t, *cands]

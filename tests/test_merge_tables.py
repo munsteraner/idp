@@ -107,12 +107,23 @@ def test_merge_main_parallel_tmbr(tmp_path):
     cases = ["text/text_dense__de", "text/text_dense__legalRef"]
     good = "<table><tr><th>Year</th><th>Sales</th></tr><tr><td>2024</td><td>10</td></tr></table>"
     bad = "<table><tr><th>Year Sales</th></tr><tr><td>2024 10</td></tr></table>"
+    good2 = good.replace("</table>", "<tr><td>2025</td><td>12</td></tr></table>")
     for case in cases:
         write(tmp_path / "base", "b", case, "x " + bad)
         write(tmp_path / "d1", "d1", case, good)
-        write(tmp_path / "d2", "d2", case, good)
+        write(tmp_path / "d2", "d2", case, good2)
     rc = main([f"{tmp_path / 'base'}:b", f"{tmp_path / 'd1'}:d1", str(tmp_path / "out"), "m", "--steps", "tmbr",
                "--extra-donor", f"{tmp_path / 'd2'}:d2", "--split", "all", "--workers", "2"])
     assert rc == 0
     out = json.loads((tmp_path / "out/text/m/text/text_dense__de.result.json").read_text())
-    assert out["output"]["markdown"] == "x " + good
+    assert out["output"]["markdown"] in ("x " + good, "x " + good2)
+
+
+def test_vote_tables_ignores_duplicate_voters():
+    from idp.merge_tables import vote_tables
+
+    base = "<table><tr><td>1<br/>2</td></tr></table>"
+    split = "<table><tr><td>1</td><td>2</td></tr></table>"
+    # the base copied as a voter must not outvote a distinct candidate
+    assert vote_tables(base, [base, base, split])[1] == 0  # only one distinct other candidate
+    assert vote_tables(base, [base, split, split])[1] == 0
