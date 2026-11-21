@@ -19,6 +19,9 @@ All cluster access goes through `.claude/skills/palma/palma.py`. It enforces the
 | --- | --- |
 | `palma.py status` | Own jobs, GPU-hours used today, free GPU nodes |
 | `palma.py ro <cmd>` | Allowlisted read-only command (`sinfo`, `squeue --me`, `sacct`, `scontrol show ...`, `ls`, `cat`, `tail`, `myquota`). No pipes; filter locally |
+
+`ro` quotes its arguments, so `$USER` is not expanded: use the literal scratch path (`palma.py ro squeue --me -h -o %u` prints the user name). It refuses any command containing the word `requeue`, so write `--partition=requeue-gpu`. `du` on the Hugging Face cache does not follow the shared blob symlinks of newer `huggingface_hub`; check a model's files with `stat -L`.
+
 | `palma.py submit job.sh [KEY=VALUE ...] [--dry-run]` | Check limits, copy the script to `jobs/`, `sbatch` it; `KEY=VALUE` pairs reach the job as environment variables |
 | `palma.py logs <jobid> [-n N]` | State plus tail of the output file |
 | `palma.py wait <jobid> [...]` | Block until the jobs reach a terminal Slurm state. Use this to wait; do not grep logs for `FAILED`, since the scorer prints that word for single pages |
