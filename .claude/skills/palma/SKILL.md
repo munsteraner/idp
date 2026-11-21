@@ -45,7 +45,7 @@ All cluster access goes through `.claude/skills/palma/palma.py`. It enforces the
 - Apptainer 1.5.0 via `module load apptainer/1.5.0` (not on the default PATH); user namespaces are enabled, so `apptainer pull docker://...` works in a job.
 - NVIDIA driver 620.70.06 on the RTX 4090 nodes. Other GPU types not yet probed.
 - `$TMPDIR` in a job is `/tmp/slurm_<user>.<jobid>` on the node's root filesystem (188 GB, 4090 node). Use it for scratch work, then move results atomically.
-- `flock` works on `/scratch`. `/scratch` is GPFS, no backup, quota 5 TB and 1,000,000 files; `/home` is 25 GB and 200,000 files, so keep caches (`HF_HOME`, `UV_CACHE_DIR`, `APPTAINER_CACHEDIR`) under the project directory and keep file counts low (shards, not one file per item).
+- `flock` works on `/scratch` between processes on one node, but did not serialise jobs on different nodes (2026-11-21: two jobs rebuilding the same split directory collided). Shared files written by concurrent jobs need unique temp names and an atomic rename, not just a lock. `/scratch` is GPFS, no backup, quota 5 TB and 1,000,000 files; `/home` is 25 GB and 200,000 files, so keep caches (`HF_HOME`, `UV_CACHE_DIR`, `APPTAINER_CACHEDIR`) under the project directory and keep file counts low (shards, not one file per item).
 - Maximum array size 2001. QOS `normal` allows 2000 jobs.
 
 | Partition | GPU | Max time | Notes |
