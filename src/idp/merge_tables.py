@@ -229,17 +229,41 @@ def table_agreement(a: list[str], b: list[str]) -> float:
     return 2 * common / (na + nb)
 
 
-def metric_agreement(a: list[str], b: list[str], max_chars: int = 200_000) -> float:
+def _timed(fn, seconds: int):
+    """``fn()``, or TimeoutError after ``seconds`` (SIGALRM: main thread of a process only)."""
+    import signal
+
+    def on_alarm(signum, frame):
+        raise TimeoutError
+
+    previous = signal.signal(signal.SIGALRM, on_alarm)
+    signal.alarm(seconds)
+    try:
+        return fn()
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous)
+
+
+def metric_agreement(a: list[str], b: list[str], max_chars: int = 200_000, timeout: int = 60) -> float:
     """Agreement of two table sets under the benchmark's own table metric (``table_next``), each side taken as
     the reference for the other and the two scores averaged. No labels: only two parser outputs are compared,
-    which makes the vote a minimum Bayes risk choice. Pairs above ``max_chars`` fall back to the cell-text
-    agreement (the metric's assignment search gets slow on very long tables)."""
+    which makes the vote a minimum Bayes risk choice. Pairs above ``max_chars``, or whose metric takes longer
+    than ``timeout`` seconds in either direction (large form grids made one page run for over an hour), fall
+    back to the cell-text agreement."""
     ma, mb = "\n\n".join(a), "\n\n".join(b)
     if len(ma) + len(mb) > max_chars:
         return table_agreement(a, b)
     from parse_bench.evaluation.metrics.parse.table_next import score_table_next
 
-    return (score_table_next(ma, mb).score + score_table_next(mb, ma).score) / 2
+    try:
+        return _timed(lambda: (score_table_next(ma, mb).score + score_table_next(mb, ma).score) / 2, timeout)
+    except TimeoutError:
+        import sys
+
+        print(f"metric_agreement: timeout after {timeout} s ({len(ma)}+{len(mb)} chars), cell-text agreement used",
+              file=sys.stderr)
+        return table_agreement(a, b)
 
 
 def vote_tables(base: str, others: list[str], agreement=table_agreement) -> tuple[str, int]:

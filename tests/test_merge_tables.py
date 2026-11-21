@@ -127,3 +127,19 @@ def test_vote_tables_ignores_duplicate_voters():
     # the base copied as a voter must not outvote a distinct candidate
     assert vote_tables(base, [base, base, split])[1] == 0  # only one distinct other candidate
     assert vote_tables(base, [base, split, split])[1] == 0
+
+
+def test_metric_agreement_falls_back_on_timeout(monkeypatch):
+    import time
+
+    import parse_bench.evaluation.metrics.parse.table_next as tn
+
+    from idp.merge_tables import metric_agreement, table_agreement
+
+    def slow(a, b):
+        time.sleep(5)
+
+    monkeypatch.setattr(tn, "score_table_next", slow)
+    a = ["<table><tr><td>1</td><td>2</td></tr></table>"]
+    b = ["<table><tr><td>1</td></tr></table>"]
+    assert metric_agreement(a, b, timeout=1) == table_agreement(a, b)
