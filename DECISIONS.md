@@ -236,3 +236,17 @@ Where a classical tool strictly beats the VLM: strikeout 55 of 77 pages and unde
 Per dimension on test (`route_charts` against LightOnOCR): text −0.10 [−0.28, 0.00], formatting +5.88 [+4.64, +7.07], tables +1.56 [+0.16, +4.25], charts +12.28 [+8.43, +14.74], layout +1.27 [+0.14, +2.42], forms +0.35 [−0.08, +1.06].
 
 **Conclusion.** The gains hold on held-out documents at the same size as on dev; there is no sign of overfitting to dev. Absolute scores are lower on test than on dev for every system (LightOnOCR 77.20 against 78.77), so test pages are somewhat harder; comparisons are only made within one split. Still open on test: the `sparse` step alone (`merge_nosparse` registered for that) and `route_charts_v7` (KDL layout); the session ended before those ran.
+
+## 2026-11-21: Test split: best system confirmed; `sparse` step not confirmed
+
+Both checks left open on 2026-11-20 had finished on PALMA (jobs 47844277, 47844292, 47844321):
+
+| Comparison on test (1,734 pages) | Test | Paired difference | On dev |
+| --- | --- | --- | --- |
+| `route_charts_v7` against LightOnOCR | 81.12 against 77.20 | **+3.92 [+3.08, +4.82]** | +3.81 |
+| `merge_v6` against `merge_nosparse` (the `sparse` step alone) | 78.67 against 78.52 | +0.15 [−0.04, +0.59] | +0.14 [+0.04, +0.31] |
+
+`route_charts_v7` per dimension on test against LightOnOCR: text −0.10, formatting +5.88, tables +1.56, charts +12.28, layout +3.55 [+0.60, +6.73], forms +0.35.
+
+- The best system and the KDL layout transplant hold on held-out documents.
+- `sparse`, the one step whose thresholds were chosen on dev, has the same size on test, but its interval includes zero. It stays in the system (no harm, same direction) and is marked unconfirmed; it must not be cited as an established gain.
