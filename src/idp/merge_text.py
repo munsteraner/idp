@@ -25,6 +25,20 @@ def text_agreement(a: str, b: str, timeout: int = 60) -> float:
         return 0.0
 
 
+def page_agreement(a: str, b: str) -> float:
+    """Text-metric agreement of two whole pages, averaged with the table-metric agreement of their tables when
+    either page has a complete table (a page with no table against one with tables scores 0 on that half).
+    The page type, and so the metric a page is scored with, is unknown at parse time; this mixes the two."""
+    from idp.merge_tables import _complete_tables, metric_agreement
+
+    text = text_agreement(a, b)
+    ta, tb = _complete_tables(a), _complete_tables(b)
+    if ta is None and tb is None:
+        return text
+    table = metric_agreement(ta, tb) if ta is not None and tb is not None else 0.0
+    return (text + table) / 2
+
+
 def vote_text(base: str, others: list[str], agreement=text_agreement, with_tables: bool = False) -> tuple[str, int]:
     """The candidate (base or one of ``others``) with the highest summed agreement with the rest; the base
     stays on a tie, on pages with tables (unless ``with_tables``), and when fewer than two distinct non-empty
