@@ -12,6 +12,9 @@ Steps (each uses only the two parse outputs, no labels):
          the others (cell-text agreement, ``idp.merge_tables.vote_tables``); the base stays on a tie
   tmbr   the same choice with the benchmark's own table metric as agreement between candidates
          (minimum Bayes risk selection; no labels; slow, use --workers)
+  xmbr   on pages without tables, the whole page markdown from whichever of base and --extra-donor runs
+         agrees most with the others under the text metric (``idp.merge_text``); decorations from the donor
+         (the text layer) are transferred onto a chosen candidate
 
 The merged outputs are written as a new pipeline in the harness results layout (base layout boxes kept),
 so the official scorer scores them like any other run. Register the pipeline name in
@@ -49,7 +52,7 @@ from idp.merge_tables import (
     vote_tables,
 )
 
-STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap", "tables", "tvote", "tmbr")
+STEPS = ("decor", "decorf", "trunc", "corner", "sparse", "snap", "tables", "tvote", "tmbr", "xmbr")
 
 
 def merge_markdown(
@@ -66,6 +69,13 @@ def merge_markdown(
     if "tmbr" in steps:
         out, n = vote_tables(out, [donor, *(others or [])], agreement=metric_agreement)
         applied["tmbr"] += n
+    if "xmbr" in steps:
+        from idp.merge_text import vote_text
+
+        chosen, n = vote_text(out, others or [])
+        if n:
+            out, _ = apply_decor(chosen, donor_spans(donor), min_chars, fuzzy=90)
+        applied["xmbr"] += n
     if "trunc" in steps:
         out, n = fix_truncated_table(out, donor)
         applied["trunc"] += n
