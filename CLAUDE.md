@@ -18,6 +18,7 @@ Document parsing first, schema extraction second. Step one: find the best open-w
 - Jobs run from a committed code snapshot (`palma.py sync`), so commit before submitting.
 - Secrets live in `.env` (git-ignored) and on PALMA in `/scratch/tmp/$USER/idp/.env`. Never print them.
 - State belongs in files, not in chat: results, decisions and status must survive a cleared conversation.
+- Literature scout (user, 2026-11-21): run the `literature-scout` agent (`.claude/agents/literature-scout.md`) at the start of each new research line, when a line is exhausted, and at least once per day of active research, in the background. It appends to `docs/literature.md`; check its claims, then move promising items into `IDEAS.md`.
 
 ## Commands
 
