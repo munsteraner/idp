@@ -256,3 +256,42 @@ Both checks left open on 2026-11-20 had finished on PALMA (jobs 47844277, 478442
 **Changed.** The user raised the concurrent GPU limit (PRD section 8) from 2 to 4 for the weekend: a submission may use the raised limit only if its time limit ends before 2026-11-23 00:00, so no job holds more than 2 GPUs after Sunday. The 4 h per job and 30 GPU-hours per day caps are unchanged. The preemptible `requeue-gpu` partition may be used on its RTX 4090 nodes only (`--gres=gpu:rtx4090:N`); its A40s are excluded because a different GPU type changes outputs inside a comparison (compute policy, 2026-11-20). Both rules are enforced in `palma.py` (`GPU_RAISES`, `REQUEUE_GPU`).
 
 **Why.** Saturday, quiet cluster: at 12:40 `gpuexpress-zen4` had 5 of 6 RTX 4090s free (but one running job per user), `gpu4090` about 4 free with 101 jobs pending, `requeue-gpu` free RTX 4090s. Screening the next VLM candidates (step 2 in `STATUS.md`) can then run two models at a time. Bench inference skips pages already done, so a preempted job on `requeue-gpu` resumes without repeating work.
+
+## 2026-11-21: Full-set score: `route_charts_v7` 82.00, above the best published open-weight row (80.07)
+
+**What was run.** All 4,317 pages, dataset `c300dcf`, scorer 2.1.2, code `55eea17`. KDL-Frontier-Parser-nano-v2's dev and test outputs were linked into one run (`idp.combine_runs`, `jobs/combine.sh`, job 47848472) and scored. `merge_v7_nosnap` (job 47848478) and `route_charts_v7` (job 47848492) were rebuilt on `SPLIT=all` into `runs/parse-all/` from the full-set LightOnOCR and pymupdf4llm runs and the combined KDL run. Paired cluster bootstrap with `score_split` (jobs 47848509 to 47848511, 1,000 resamples).
+
+| System | Overall | Text | Formatting | Tables | Charts | Layout | Forms |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `route_charts_v7` | **82.00** | 83.90 | 87.34 | 80.07 | 73.13 | 88.21 | 79.34 |
+| `merge_v7_nosnap` | 80.27 | 83.93 | 87.33 | 79.97 | 62.82 | 88.20 | 79.34 |
+| KDL-Frontier-Parser-nano-v2, ours | 80.07 | 80.13 | 84.49 | 80.56 | 73.32 | 88.42 | 73.51 |
+| KDL-Frontier-Parser-nano-v2, leaderboard | 80.07 | 80.21 | 84.58 | 80.54 | 73.55 | 88.28 | 73.28 |
+| LightOnOCR-3 4B, ours | 78.14 | 83.95 | 81.26 | 77.66 | 62.82 | 83.85 | 79.32 |
+
+| Paired difference of `route_charts_v7` | Full set | Test split only |
+| --- | --- | --- |
+| against KDL | **+1.93 [+1.35, +2.54]** | +1.75 [+0.67, +2.74] (79.37 on test) |
+| against LightOnOCR | +3.86 [+3.20, +4.43] | +3.92 [+3.08, +4.82] |
+
+**What it shows.**
+
+- A second published open-weight row reproduces on our setup: KDL matches its leaderboard row to the hundredth overall and within 0.25 on every dimension.
+- `route_charts_v7` is 1.93 points above the best published open-weight parser on the leaderboard's own measure, from two small VLMs (4B and 1.2B) and the PDF text layer. The full set includes the dev pages used to build the system, so the held-out claim is the test split: +1.75 [+0.67, +2.74] over KDL. The test score recomputed from the full-set run equals the earlier test-only scoring (81.12), so the full-set build matches the dev and test builds.
+- Against KDL, the gains are text +3.8, formatting +2.8 and forms +5.8 (LightOnOCR's markdown); tables, charts and layout are level with KDL, since those come from KDL or are close (layout −0.2 [−0.46, −0.03]: the 4 pages without a LightOnOCR result count as failed).
+
+**Found along the way** (`IDEAS.md`, ideas 7 and 8). LightOnOCR has no result on 4 test pages, one because the first job environment lacked `cryptography`. More important: the `pymupdf4llm_markdown` donor has results on only 3,527 of 4,317 pages, because our environment has `pymupdf4llm` 2.1 without RapidOCR instead of the harness's pinned extra (`pymupdf4llm==1.28.2`, `rapidocr==3.9.2`), so every page where pymupdf4llm wants OCR fails. No merge step runs on those 790 pages.
+
+## 2026-11-21: Next VLM candidates: Chandra 2 and dots.mocr screened first; licences and remote code
+
+**Which pipelines.** The official results dataset `llamaindex/ParseBench-2-results` names the leaderboard rows' pipelines: `chandra2_vllm`, `dots_ocr_1_5_parse` (dots.mocr), `infinity_parser2_pro_deep`, `mineru2605pro_vllm`, `paddleocr_vl_1_6_pipeline`. All five architectures are in vLLM v0.34.0. Only Chandra 2 and dots.mocr run with our setup today (settings from the providers and model cards, pinned in `jobs/bench_vllm.sh`):
+
+- **Infinity-Parser2 Pro** (35B MoE, 70 GB in BF16): needs the `infinity-parser2` SDK in the environment and more than one RTX 4090 (4 with tensor parallelism, unverified), or an H200. Its server needs `enable_thinking: false`, otherwise pages come back empty.
+- **MinerU2.5-Pro** and **PaddleOCR-VL 1.6**: the harness pipelines post to a custom `/predict` server it does not ship, MinerU's vLLM logits processor needs vLLM < 0.31, PaddleOCR's leaderboard setup needs a PaddlePaddle environment. Deferred until the cheaper candidates are measured.
+
+**Licences** (research on public benchmark data is allowed under both; deployment would need another check, as for KDL's AGPL):
+
+- Chandra 2 (`datalab-to/chandra-ocr-2`, `af93b47d`): "AI PUBS OPEN RAIL-M LICENSE (MODIFIED)". Organisations above $2M revenue or funding may use it for personal or research use only, and nobody may use it in a product or service that competes with Datalab's, without a research exception.
+- dots.mocr (`dots-studio/dots.mocr`, `7c53434c`): MIT plus the "dots.mocr LICENSE AGREEMENT", which forbids "unauthorized digitization of publications/document scanning or bulk scraping of content" and asks for permission before use on copyright-protected material. ParseBench 2 is a published benchmark dataset used here for evaluation only.
+
+**Remote code.** dots.mocr's image processor is custom (`DotsVLProcessor` through `auto_map`), so vLLM runs with `--trust-remote-code`, as the model card says. The revision is pinned; its three Python files (`configuration_dots.py`, `modeling_dots_ocr.py`, `modeling_dots_vision.py`, 612 lines) import only torch and transformers, with no network, subprocess or eval calls (read on 2026-11-21). Chandra 2 has no custom code.

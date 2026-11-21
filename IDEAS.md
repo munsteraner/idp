@@ -43,3 +43,16 @@ Numbers below: mean per-page score on dev (×100) from `runs/scores/page-scores-
 - **Hypothesis.** A second strong VLM (KDL-Frontier-Parser-nano-v2, Infinity-Parser2 Pro, Chandra 2) adds complementary strengths, notably on charts, where no classical tool helps (oracle over the current pool: 65.4 against 65.3).
 - **Test.** Screening split first (compute policy, `DECISIONS.md`).
 - **Status.** Open; after ideas 1 to 3, since the cheap merges come first.
+
+## 7. A complete text-layer donor: `pymupdf4llm` without OCR failures
+
+- **Hypothesis.** Every merge step (`decorf`, `trunc`, `sparse`) borrows from `pymupdf4llm_markdown`, but that run has results for only 3,527 of 4,317 pages. On the other 790 the merge steps cannot fire. A donor with a result on every page lets them act there too.
+- **Evidence** (found 2026-11-21). The 790 pages failed with "OCR engine is unavailable - no callable provided": the harness pipeline asks for OCR through RapidOCR (`use_ocr: True, ocr_backend: rapidocr`), and its `pymupdf4llm` extra pins `pymupdf4llm==1.28.2` and `rapidocr==3.9.2`. Our environment never installed that extra; it has `pymupdf4llm` 2.1, which PyMuPDF 2.1 now pulls in itself, and no `rapidocr`. So every page where pymupdf4llm decides it needs OCR fails. Failures by subset: text 187, layout 160, complex table headers 107, charts 79, financial tables 67, forms 45, tables 40, dense tables 21, headings 19, underline 19, strikeout 18, insurance 15, fillable forms 13. Our 50.99 for `pymupdf4llm_markdown` therefore understates the harness pipeline.
+- **Test.** Two donor variants, both CPU-only: (a) the harness pipeline in an environment with its `pymupdf4llm` extra (check that it resolves next to PyMuPDF 2.1); (b) our own registered variant with `use_ocr: False`, text layer only (OCR'd text carries no decorations, and OCR tables are unlikely to beat LightOnOCR's). Rerun only the failed pages into a new run directory, rebuild `merge_v7_nosnap` and `route_charts_v7` on dev, paired against the current ones. Merges from cached runs need only the paired interval.
+- **Status.** Open.
+
+## 8. Fall back to another parser on pages where the base failed
+
+- **Hypothesis.** LightOnOCR has no result on 4 pages (all in the test split): 3 empty responses, and `dense_table_155`, an encrypted PDF the first job environment could not open (`cryptography` was missing; today's lock has it). These count as failures in every score, including the full-set 82.00 of `route_charts_v7`. Taking KDL's page where the base has none is a rule seen at parse time with no parameters.
+- **Test.** `idp.route` with a fallback to the second system when the first has no result; at most 4 pages on the full set, so worth at most about 0.1 point. Re-run `dense_table_155` with LightOnOCR in the current environment.
+- **Status.** Open; small.

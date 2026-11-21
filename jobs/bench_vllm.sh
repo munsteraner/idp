@@ -37,6 +37,27 @@ case "$PIPELINE" in
     SERVED=kdl-frontier-parser-nano-v2 URL_ENV=KDL_NANO_ENDPOINT_URL URL_SUFFIX=/v1
     FLAGS=(--max-model-len 8192 --max-num-seqs 24 --limit-mm-per-prompt '{"image": 1}')
     ;;
+  chandra2_vllm)
+    # Chandra 2 (5.3B, the leaderboard's chandra2_vllm row). Weights under a modified OpenRAIL-M licence
+    # (research use allowed; DECISIONS.md 2026-11-21). Flags from the official launcher (chandra-ocr
+    # 0.3.0 chandra_vllm, scaled there for an RTX 4090). The provider appends /v1/chat/completions
+    # itself and always asks for model "chandra" (192 dpi pages, 12,384 output tokens); no custom code.
+    MODEL=datalab-to/chandra-ocr-2 REV=af93b47dba1b47b6640c86ccf487ed2260ab9a09
+    SERVED=chandra URL_ENV=CHANDRA2_SERVER_URL
+    FLAGS=(--gpu-memory-utilization 0.85 --limit-mm-per-prompt '{"image": 1}' --max-model-len 18000
+           --mm-processor-kwargs '{"min_pixels": 3136, "max_pixels": 6291456}' --max-num-seqs 16)
+    ;;
+  dots_ocr_1_5_parse)
+    # dots.mocr (3.0B, the leaderboard's "dots.mocr" row; its model card's eval file names this
+    # pipeline). MIT plus the dots.mocr licence agreement (DECISIONS.md 2026-11-21). Flags from the
+    # model card; vLLM has the architecture natively. The provider uses the URL as OpenAI base_url, so
+    # /v1. 300 dpi pages are up to ~14k image tokens plus 16,384 output tokens: vLLM silently clamps
+    # max_tokens to what fits in --max-model-len, so leave room for both.
+    MODEL=dots-studio/dots.mocr REV=7c53434cd403d2e7f5f1d745eb2a2467a6473423
+    SERVED=dots-ocr-1.5 URL_ENV=DOTS_OCR_ENDPOINT_URL URL_SUFFIX=/v1
+    FLAGS=(--trust-remote-code --chat-template-content-format string --gpu-memory-utilization 0.9
+           --max-model-len 32768 --limit-mm-per-prompt '{"image": 1}')
+    ;;
   *) echo "no vLLM settings for $PIPELINE" >&2; exit 2 ;;
 esac
 SIF=$P/images/vllm-v0.34.0.sif
