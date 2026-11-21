@@ -13,7 +13,7 @@
 #        [LAYOUT_FROM=kdl_frontier_nano_v2 LAYOUT_ROOT=runs/parse]   layout items from another run
 #        [KEEP_NAME=1] [SKIP_SOURCE=kdl_frontier_nano_v2]   for a router as base (pages keep their source name)
 #        ["EXTRA_DONORS=runs/parse-pub/chandra2_vllm ..."]   further candidates for the tvote step (run paths)
-#        [WORKERS=16]   pages in parallel processes (merge_normal.sh: 32, for the slow tmbr step)
+#        [WORKERS=16]   pages in parallel processes (merge_big.sh: 32, for the slow tmbr step)
 # STEPS uses "-" between steps (the wrapper allows no commas).
 : "${SHA:?set SHA}" "${NAME:?set NAME}" "${STEPS:?set STEPS}"
 source "/scratch/tmp/$USER/idp/code/$SHA/jobs/_env.sh"

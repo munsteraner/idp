@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=idp-merge
-#SBATCH --partition=normal
+#SBATCH --partition=zen4
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=64G
 #SBATCH --time=04:00:00
-# merge.sh on the normal partition with 32 parallel workers, for slow steps (tmbr computes the table metric
+# merge.sh on the zen4 CPU partition with 32 parallel workers, for slow steps (tmbr computes the table metric
 # between every pair of candidates on every page). Same arguments as merge.sh.
 : "${SHA:?set SHA}"
 export WORKERS=${WORKERS:-32}
