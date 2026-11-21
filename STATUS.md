@@ -64,15 +64,15 @@ Test split (1,734 pages, scored once on 2026-11-20/21): LightOnOCR 77.20, `merge
 
 ## Next
 
-Priority set on 2026-11-19: parsing first, schema extraction second. Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated search (PRD section 9a), confirmed on held-out data.
+Priority set on 2026-11-19: parsing first, schema extraction second. Goal: the highest ParseBench 2 score reachable by combining vision models, classical methods and automated search (PRD section 9a), confirmed on held-out data. Done so far: harness and reproduction, splits and noise floors, classical tools, merges and routing, test confirmation of the best system.
 
-1. Done: ParseBench 2 on PALMA; LightOnOCR-3 4B reproduced; splits and noise floors; classical tools measured.
-2. Done: test confirmation (`DECISIONS.md`, 2026-11-21). Optional: one full-set score (all 4,317 pages, comparable with the leaderboard row of 80.07) by building `route_charts_v7` on `SPLIT=all`; KDL's outputs are split between `runs/parse/kdl_frontier_nano_v2` (dev) and `runs/parse-test/kdl_frontier_nano_v2` (test), so the router needs both roots or one combined directory.
-3. Tables, the largest remaining gap (79.8 against an oracle of 90.2 on dev): choose per table among LightOnOCR, KDL and the text layer. Candidate signal: agreement between the three versions of a table (consensus), which needs no labels.
-4. Layout: done for now. KDL's layout items under LightOnOCR's text (89.06 on dev, oracle 91.8).
-5. More VLMs, screened first (`SPLIT=screen`): Infinity-Parser2 Pro (78.41), Chandra 2 (77.45), MinerU2.5-Pro (76.77), PaddleOCR-VL 1.6, dots.mocr. Add a `case` entry in `jobs/bench_vllm.sh` from each provider's docstring.
-6. Build the orchestrator for the research loop (PRD section 9a): instruction file, `IDEAS.md` backlog, results log, a loop starting a fresh headless Claude Code per iteration, permission allowlist.
-7. Step two, later: schema extraction on top of the best parse, checked on ExtractBench.
+1. **Full-set score of `route_charts_v7`** (all 4,317 pages, directly comparable with the leaderboard, best open row 80.07). Small CPU job: build `merge_v7_nosnap` and `route_charts_v7` on `SPLIT=all TAG=all`. KDL's outputs are split between `runs/parse/kdl_frontier_nano_v2` (dev) and `runs/parse-test/kdl_frontier_nano_v2` (test); give the router and the layout transplant a combined input (for example a third run directory with both sets of result files) before building.
+2. **Screen more VLMs on `SPLIT=screen`** (compute policy in `DECISIONS.md`). Strongest expected lever: KDL brought the largest gains (charts +12, layout +3.5 on test), and the published table scores of Infinity-Parser2 Pro (tables 86.27, text 85.55) and Chandra 2 (tables 85.60, formatting 88.80) are far above LightOnOCR (78.25) and KDL (80.54) on tables, the largest remaining gap (dev 79.8 against an oracle of 90.2). Then MinerU2.5-Pro, PaddleOCR-VL 1.6, dots.mocr. For each: read the provider's docstring in `parse_bench/inference/providers/parse/`, check the licence, add a `case` entry to `jobs/bench_vllm.sh`, run with `jobs/bench_vllm_express.sh` if `gpu4090` has a long queue.
+3. **Route or merge with the new VLMs**, starting with tables: per page or per table (element level, like the KDL layout transplant). Measure on dev with `score_split --baseline route_charts_v7`; the noise floor applies to model runs.
+4. **Orchestrator for the research loop** (PRD section 9a): the manual cycle is now fixed (hypothesis in `IDEAS.md` → merge step or router → `jobs/merge.sh` or `jobs/route.sh` on dev → `score_split` paired interval → row in `results/parsebench2.tsv` and entry in `DECISIONS.md`), so it can be automated: instruction file, a loop starting a fresh headless Claude Code per iteration, permission allowlist, test split unreadable to the loop.
+5. Step two, later: schema extraction on top of the best parse, checked on ExtractBench.
+
+Open leads in `IDEAS.md`: per-table choice with a better agreement measure (idea 6), forms (LightOnOCR is best on forms; neither merge nor KDL helps there).
 
 ## Open points
 
