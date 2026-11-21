@@ -29,5 +29,8 @@ source "$CODE/jobs/_bench.sh"
   ${LAYOUT_FROM:+--layout-from "$P/${LAYOUT_ROOT:-runs/parse}/$LAYOUT_FROM/parsebench-2:$LAYOUT_FROM"} \
   ${KEEP_NAME:+--keep-name} ${SKIP_SOURCE:+--skip-source "$SKIP_SOURCE"} "${EXTRA_ARGS[@]}" \
   --workers "${WORKERS:-1}"
-bench_data
-bench_score
+# SCORE=0 builds without scoring (test-split pieces of a system not yet confirmed stay unscored).
+if [ "${SCORE:-1}" != 0 ]; then
+  bench_data
+  bench_score
+fi

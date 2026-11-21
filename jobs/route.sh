@@ -16,5 +16,8 @@ source "$CODE/jobs/_bench.sh"
 "$PY" -m idp.route "$P/${FIRST_ROOT:-runs/parse}/$FIRST/parsebench-2:$FIRST" "$P/${SECOND_ROOT:-runs/parse}/$SECOND/parsebench-2:$SECOND" \
   "$OUT/parsebench-2" "$PIPELINE" --rule "$RULE" --split $SPLIT \
   --lightonocr-run "$P/runs/parse/lightonocr3_4b_vllm/parsebench-2:lightonocr3_4b_vllm"
-bench_data
-bench_score
+# SCORE=0 builds without scoring (test-split pieces of a system not yet confirmed stay unscored).
+if [ "${SCORE:-1}" != 0 ]; then
+  bench_data
+  bench_score
+fi
